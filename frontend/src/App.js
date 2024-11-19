@@ -17,6 +17,7 @@ function App() {
           <Route path="/signup" element={<SignUp />} /> {/* Route to SignUp page */}
           <Route path="/dashboard" element={<ProtectedRoute component={Dashboard} />} />
         </Routes>
+        
       </div>
     </Router>
   );

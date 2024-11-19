@@ -5,3 +5,6 @@
 body {
   @apply font-sans;
 }
+* {
+  user-select: none; /* Prevent text selection globally */
+}

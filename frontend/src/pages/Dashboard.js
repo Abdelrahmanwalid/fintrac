@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
+import { X, DollarSign, PieChart, GraduationCap, User } from 'lucide-react';
 import BudgetingTool from '../tools/BudgetingTool';
 import CompoundInterestCalculator from '../tools/CompoundInterestCalculator';
 import Profile from '../tools/Profile';
 import StudentLoanCalculator from '../tools/StudentLoanCalculator';
 
 const Dashboard = () => {
-  // State to manage the currently active tool
   const [activeTool, setActiveTool] = useState('budgeting');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // Function to render the selected tool component
   const renderTool = () => {
     switch (activeTool) {
       case 'budgeting':
-        return <BudgetingTool />;
+        return <BudgetingTool setIsSidebarOpen={setIsSidebarOpen} isSidebarOpen={isSidebarOpen} />;
       case 'compoundInterest':
         return <CompoundInterestCalculator />;
       case 'studentLoan':
@@ -20,60 +20,65 @@ const Dashboard = () => {
       case 'profile':
         return <Profile />;
       default:
-        return <BudgetingTool />;
+        return <BudgetingTool setIsSidebarOpen={setIsSidebarOpen} isSidebarOpen={isSidebarOpen} />;
     }
   };
 
+  const NavItem = ({ icon: Icon, label, toolName }) => (
+    <li>
+      <button
+        onClick={() => setActiveTool(toolName)}
+        className={`flex items-center w-full text-left px-4 py-2 rounded-lg transition-colors ${
+          activeTool === toolName
+            ? 'bg-blue-700 text-white'
+            : 'text-blue-100 hover:bg-blue-700/50'
+        }`}
+      >
+        <Icon className="h-5 w-5 mr-3" />
+        {label}
+      </button>
+    </li>
+  );
+
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100 overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-1/4 p-6 bg-blue-800 text-white">
-        <h2 className="text-2xl font-bold mb-4">Dashboard</h2>
-        <nav>
-          <ul>
-            <li>
-              <button
-                onClick={() => setActiveTool('budgeting')}
-                className="block text-white py-2 hover:underline"
-              >
-                Budgeting Tool
-              </button>
-            </li>
-            <li>
-              <button
-                onClick={() => setActiveTool('compoundInterest')}
-                className="block text-white py-2 hover:underline"
-              >
-                Compound Interest Calculator
-              </button>
-            </li>
-            <li>
-              <button
-                onClick={() => setActiveTool('studentLoan')}
-                className="block text-white py-2 hover:underline"
-              >
-                Student Loan Calculator
-              </button>
-            </li>
-            <li>
-              <button
-                onClick={() => setActiveTool('profile')}
-                className="block text-white py-2 hover:underline"
-              >
-                Profile
-              </button>
-            </li>
+      <aside
+        className={`${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } fixed inset-y-0 left-0 z-50 w-64 bg-blue-800 text-white transition-transform duration-300 ease-in-out md:relative md:translate-x-0`}
+      >
+        <div className="flex items-center h-14 px-4 border-b border-blue-700">
+          <h2 className="text-xl font-bold">FinTrac</h2>
+          <button
+            onClick={() => setIsSidebarOpen(false)}
+            className="md:hidden text-white hover:text-blue-200 ml-auto"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <nav className="mt-4">
+          <ul className="space-y-1 px-3">
+            <NavItem icon={DollarSign} label="Budgeting Tool" toolName="budgeting" />
+            <NavItem icon={PieChart} label="Compound Interest" toolName="compoundInterest" />
+            <NavItem icon={GraduationCap} label="Student Loan" toolName="studentLoan" />
+            <NavItem icon={User} label="Profile" toolName="profile" />
           </ul>
         </nav>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-6">
-        <h1 className="text-3xl font-bold mb-4">Welcome to Your Dashboard</h1>
-        
-        {/* Render the active tool */}
-        {renderTool()}
+      <main className="flex-1 flex flex-col h-full overflow-hidden">
+        <div className="flex-1 overflow-auto">{renderTool()}</div>
       </main>
+
+      {/* Overlay for Mobile */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        ></div>
+      )}
     </div>
   );
 };
