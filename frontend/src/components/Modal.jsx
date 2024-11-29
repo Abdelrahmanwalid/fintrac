@@ -1,12 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
+import { useItemContext } from './Budget/Categories/Items/ItemContext';
 
-const Modal = ({ isOpen, onClose, onSubmit, initialPosition }) => {
+const Modal = ({ isOpen, onClose, initialPosition, categoryId }) => {
   const [itemName, setItemName] = useState('');
-  const [position, setPosition] = useState(initialPosition || { x: 0, y: 0 });
+  const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [positionReady, setPositionReady] = useState(false);
   const modalRef = useRef(null);
+  const { handleAddItem } = useItemContext();
+
+  useEffect(() => {
+    if (isOpen && initialPosition) {
+      setPosition(initialPosition);
+      setPositionReady(true);
+    }
+  }, [isOpen, initialPosition]);
 
   const handleMouseDown = (e) => {
     setIsDragging(true);
@@ -39,30 +49,31 @@ const Modal = ({ isOpen, onClose, onSubmit, initialPosition }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (itemName.trim()) {
-      onSubmit(itemName);
+      handleAddItem(categoryId, itemName.trim());
       setItemName(''); // Clear input after submission
       onClose(); // Close the modal
     }
   };
 
-  const handleClickOutside = (e) => {
-    if (modalRef.current && !modalRef.current.contains(e.target)) {
-      onClose();
-    }
-  };
-
   useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (modalRef.current && !modalRef.current.contains(e.target)) {
+        onClose();
+      }
+    };
+
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     } else {
       document.removeEventListener('mousedown', handleClickOutside);
     }
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isOpen]);
+  }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !positionReady) return null;
 
   return ReactDOM.createPortal(
     <>
@@ -89,18 +100,19 @@ const Modal = ({ isOpen, onClose, onSubmit, initialPosition }) => {
               placeholder="Enter item name"
               className="border border-gray-300 rounded-lg p-2 w-full mb-4"
               required
+              autoFocus
             />
             <div className="flex justify-end">
               <button
                 type="button"
                 onClick={onClose}
-                className="mr-2 bg-gray-300 text-gray-700 rounded-lg px-4 py-2"
+                className="mr-2 bg-gray-300 text-gray-700 rounded-lg px-4 py-2 hover:bg-gray-400 transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="bg-blue-600 text-white rounded-lg px-4 py-2 hover:bg-blue-700"
+                className="bg-blue-600 text-white rounded-lg px-4 py-2 hover:bg-blue-700 transition-colors"
               >
                 Add Item
               </button>

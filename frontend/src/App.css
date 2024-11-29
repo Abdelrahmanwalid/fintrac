@@ -7,4 +7,5 @@ body {
 }
 * {
   user-select: none; /* Prevent text selection globally */
+  -webkit-user-select: none; /* Prevent text selection in Safari */
 }

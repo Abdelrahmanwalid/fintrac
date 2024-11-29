@@ -56,6 +56,11 @@ const IncomeForm = () => {
     setErrors({});
   };
 
+  // Function to remove an income item
+  const removeIncomeItem = (index) => {
+    setIncomeItems((prevItems) => prevItems.filter((_, i) => i !== index));
+  };
+
   return (
     <div className="flex">
       <div className="w-1/2 p-4">
@@ -221,7 +226,7 @@ const IncomeForm = () => {
 
       {/* Render IncomeDashboard on the side */}
       <div className="w-1/2 p-4">
-        <IncomeDashboard incomeItems={incomeItems} />
+        <IncomeDashboard incomeItems={incomeItems} removeIncomeItem={removeIncomeItem} />
       </div>
     </div>
   );

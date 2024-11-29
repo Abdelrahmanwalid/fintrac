@@ -5,7 +5,7 @@ import WelcomePage from "./pages/WelcomePage"; // Import WelcomePage component
 import Login from "./pages/Login"; // Import Login component
 import SignUp from "./pages/SignUp"; // Import SignUp component
 import Dashboard from './pages/Dashboard';
-import ProtectedRoute from './components/ProtectedRoute';
+import ProtectedRoute from './components/Auth/ProtectedRoute';
 
 function App() {
   return (

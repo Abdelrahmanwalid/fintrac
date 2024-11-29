@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { X, DollarSign, PieChart, GraduationCap, User } from 'lucide-react';
-import BudgetingTool from '../tools/BudgetingTool';
-import CompoundInterestCalculator from '../tools/CompoundInterestCalculator';
-import Profile from '../tools/Profile';
-import StudentLoanCalculator from '../tools/StudentLoanCalculator';
+import BudgetingTool from '../tabs/BudgetingTool';
+import CompoundInterestCalculator from '../tabs/CompoundInterestCalculator';
+import Profile from '../tabs/Profile';
+import StudentLoanCalculator from '../tabs/StudentLoanCalculator';
 
 const Dashboard = () => {
   const [activeTool, setActiveTool] = useState('budgeting');
