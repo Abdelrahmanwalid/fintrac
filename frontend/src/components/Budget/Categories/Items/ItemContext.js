@@ -25,7 +25,7 @@ export const ItemProvider = ({ children }) => {
       if (category.id === categoryId) {
         return {
           ...category,
-          items: [...(category.items || []), newItem]
+          items: [...(category.items || []), newItem] 
         };
       }
       return category;

@@ -1,0 +1,7 @@
+{
+    "APP_MODE": "DEV",
+    "language": "en",
+    "SERVER_URL":{
+        "DEV": "http://localhost:3000"
+    }
+}
