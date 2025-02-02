@@ -1,83 +1,89 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import {
+  fetchCategories,
+  addCategory,
+} from '../../../Api/categoryApi'; // Import the API functions
 
 const CategoryContext = createContext();
 
 export const CategoryProvider = ({ children }) => {
-  const [categories, setCategories] = useState(() => {
-    const storedCategories = localStorage.getItem('budgetCategories');
-    return storedCategories ? JSON.parse(storedCategories) : [];
-  });
+  const [categories, setCategories] = useState([]); // No longer use localStorage directly
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
 
-  // Listen for storage events and local changes
+  // Fetch categories on initial load
   useEffect(() => {
-    const handleStorageChange = () => {
-      const storedCategories = localStorage.getItem('budgetCategories');
-      if (storedCategories) {
-        setCategories(JSON.parse(storedCategories));
+    const loadCategories = async () => {
+      try {
+        setLoading(true);
+        const fetchedCategories = await fetchCategories();
+        console.log('Fetched categories:', fetchedCategories); // Debug fetched data
+        const mappedCategories = fetchedCategories.map((cat) => ({
+          ...cat,
+          id: cat._id, // Map `_id` to `id`
+        }));
+        setCategories(mappedCategories);
+      } catch (err) {
+        console.error('Failed to fetch categories:', err.message);
+        setError('Failed to load categories');
+      } finally {
+        setLoading(false);
       }
     };
+  
+    loadCategories();
+  }, [setCategories, setLoading, setError]);
+  const handleAddCategory = async () => {
+  if (newCategoryName.trim() && !categories.some((cat) => cat.name === newCategoryName.trim())) {
+    try {
+      const newCategory = await addCategory(newCategoryName.trim());
+      const updatedCategory = { ...newCategory, id: newCategory._id }; // Map `_id` to `id`
+      const updatedCategories = [...categories, updatedCategory];
+      setCategories(updatedCategories); // Update state
+      localStorage.setItem('categories', JSON.stringify(updatedCategories)); // Sync localStorage
+      setNewCategoryName('');
+      setIsAddingCategory(false);
+    } catch (err) {
+      console.error('Failed to add category:', err.message);
+    }
+  } else {
+    console.error('Category name is invalid or already exists');
+  }
+};
 
-    // Listen for storage events from other components
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Listen for custom events for local changes
-    window.addEventListener('categoriesUpdated', handleStorageChange);
 
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('categoriesUpdated', handleStorageChange);
-    };
-  }, []);
-
-  const handleAddCategory = (name) => {
-    const newCategory = {
-      id: uuidv4(),
-      name,
-      items: [],
-      isExpanded: true,
-    };
-    
-    const updatedCategories = [...categories, newCategory];
-    setCategories(updatedCategories);
-    localStorage.setItem('budgetCategories', JSON.stringify(updatedCategories));
-    window.dispatchEvent(new Event('categoriesUpdated'));
-  };
-
-  const handleRename = (categoryId, newName) => {
-    const updatedCategories = categories.map(category =>
-      category.id === categoryId ? { ...category, name: newName } : category
-    );
-    setCategories(updatedCategories);
-    localStorage.setItem('budgetCategories', JSON.stringify(updatedCategories));
-    window.dispatchEvent(new Event('categoriesUpdated'));
-  };
 
   const handleToggle = (categoryId) => {
-    const updatedCategories = categories.map(category =>
-      category.id === categoryId ? { ...category, isExpanded: !category.isExpanded } : category
+    console.log('Toggling category:', categoryId);
+    setCategories((prevCategories) =>
+        prevCategories.map((category) =>
+            category.id === categoryId
+                ? { ...category, isExpanded: !category.isExpanded }
+                : category
+        )
     );
-    setCategories(updatedCategories);
-    localStorage.setItem('budgetCategories', JSON.stringify(updatedCategories));
-    window.dispatchEvent(new Event('categoriesUpdated'));
-  };
+};
 
-  const handleDelete = (categoryId) => {
-    const updatedCategories = categories.filter(category => category.id !== categoryId);
-    setCategories(updatedCategories);
-    localStorage.setItem('budgetCategories', JSON.stringify(updatedCategories));
-    window.dispatchEvent(new Event('categoriesUpdated'));
-  };
 
   return (
-    <CategoryContext.Provider value={{
-      categories,
-      setCategories,
-      handleAddCategory,
-      handleRename,
-      handleToggle,
-      handleDelete,
-    }}>
+    <CategoryContext.Provider
+      value={{
+        categories,
+        setCategories,
+        loading,
+        setLoading,
+        error,
+        setError,
+        newCategoryName,
+        setNewCategoryName,
+        isAddingCategory,
+        setIsAddingCategory,
+        handleAddCategory,
+        handleToggle,
+      }}
+    >
       {children}
     </CategoryContext.Provider>
   );
@@ -89,4 +95,4 @@ export const useCategoryContext = () => {
     throw new Error('useCategoryContext must be used within a CategoryProvider');
   }
   return context;
-}; 
+};

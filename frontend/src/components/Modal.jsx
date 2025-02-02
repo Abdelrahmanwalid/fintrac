@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { useItemContext } from './Budget/Categories/Items/ItemContext';
+import { useDispatch } from 'react-redux';
+import { addItemAsync } from '../store/itemSlice';
 
 const Modal = ({ isOpen, onClose, initialPosition, categoryId }) => {
+  const dispatch = useDispatch();
   const [itemName, setItemName] = useState('');
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [positionReady, setPositionReady] = useState(false);
   const modalRef = useRef(null);
-  const { handleAddItem } = useItemContext();
 
   useEffect(() => {
     if (isOpen && initialPosition) {
@@ -49,9 +50,9 @@ const Modal = ({ isOpen, onClose, initialPosition, categoryId }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (itemName.trim()) {
-      handleAddItem(categoryId, itemName.trim());
-      setItemName(''); // Clear input after submission
-      onClose(); // Close the modal
+      dispatch(addItemAsync({ categoryId, itemName: itemName.trim() }));
+      setItemName('');
+      onClose();
     }
   };
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { loginUser } from '../Api/authApi'; // Import the login function from authApi
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -13,23 +13,21 @@ const Login = () => {
     setError(''); // Clear any previous errors
 
     try {
-      const response = await axios.post('http://localhost:5000/api/auth/login', { email, password });
-      const { token } = response.data;
-      
-      // Store the token in localStorage
-      localStorage.setItem('token', token);
-      
+      // Use loginUser function from authApi
+      const { accessToken } = await loginUser(email, password);
+
+      console.log('Login successful, Access Token:', accessToken);
+
       // Redirect to protected route or homepage
       navigate('/dashboard'); // Change this to your desired route
     } catch (error) {
-      console.error("Login error:", error);
-      setError("Invalid email or password. Please try again.");
+      console.error("Login error:", error.message);
+      setError(error.message || "Invalid email or password. Please try again.");
     }
   };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-custom-gradient text-white px-4">
-    
       {/* Navbar */}
       <nav className="w-full max-w-md pb-6">
         <Link to="/" className="text-blue-400 hover:underline text-lg font-semibold">

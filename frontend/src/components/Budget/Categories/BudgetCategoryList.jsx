@@ -6,134 +6,119 @@ import {
   useSensor,
   useSensors,
   DragOverlay,
-} from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable';
-import SortableCategory from './SortableCategory';
-import SortableItem from './Items/SortableItem';
-import { useCategoryContext } from './CategoryContext';
-import { useItemContext } from './Items/ItemContext';
+  rectIntersection, // You can experiment with this too
+} from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import SortableCategory from "./SortableCategory";
+import SortableItem from "./Items/SortableItem";
+import { useSelector, useDispatch } from "react-redux";
+import {
+  updateCategoryOrderAsync,
+  updateCategoryOrderOptimistic,
+  expandCategory,
+  collapseCategory,
+} from "../../../store/categorySlice";
+import { updateItemOrderAsync } from "../../../store/itemSlice";
 
 const BudgetCategoryList = () => {
-  const { categories, setCategories } = useCategoryContext();
-  const { selectedItem } = useItemContext();
+  const dispatch = useDispatch();
+  const categories = useSelector((state) => state.categories.categories);
+  const selectedItem = useSelector((state) => state.items.selectedItem);
+
+  // Refs for expansion/collapse timing and last hovered category:
   const expandTimeoutRef = useRef(null);
   const collapseTimeoutRef = useRef(null);
   const lastHoveredCategoryRef = useRef(null);
   const originalExpandStateRef = useRef({});
 
-  const [activeState, setActiveState] = useState({ 
-    id: null, 
+  // Active drag state for categories and items
+  const [activeState, setActiveState] = useState({
+    id: null,
     draggedCategory: null,
     draggedItem: null,
-    type: null 
+    type: null,
   });
 
+  // Configure sensors (try with closestCenter or rectIntersection)
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-        delay: 200,
-        tolerance: 5,
-      },
-    }),
+      activationConstraint: { distance: 8, delay: 200, tolerance: 5 },
+    })
   );
+
+  // Reset drag state and refs
+  const resetDragState = () => {
+    lastHoveredCategoryRef.current = null;
+    originalExpandStateRef.current = {};
+    setActiveState({ id: null, draggedCategory: null, draggedItem: null, type: null });
+  };
 
   const handleDragStart = (event) => {
     const { active } = event;
-    
-    // Store original expand states
+    if (!active || !active.data?.current) {
+      console.warn("Drag Start: Active item is undefined or invalid.");
+      return;
+    }
+    console.log("Drag Start:", active);
+    // Save original expansion states for all categories
     originalExpandStateRef.current = categories.reduce((acc, cat) => {
       acc[cat.id] = cat.isExpanded;
       return acc;
     }, {});
 
-    if (active.data?.current?.type === 'category') {
-      const draggedCategory = categories.find(cat => cat.id === active.id);
-      setActiveState({
-        id: active.id,
-        draggedCategory,
-        draggedItem: null,
-        type: 'category'
-      });
-    } else if (active.data?.current?.type === 'item') {
-      const draggedItem = active.data.current.item;
+    const activeItem = active.data.current;
+    if (activeItem.type === "category") {
+      const draggedCategory = categories.find((cat) => cat.id === active.id);
+      if (draggedCategory) {
+        setActiveState({
+          id: active.id,
+          draggedCategory,
+          draggedItem: null,
+          type: "category",
+        });
+      }
+    } else if (activeItem.type === "item") {
       setActiveState({
         id: active.id,
         draggedCategory: null,
-        draggedItem,
-        type: 'item'
+        draggedItem: activeItem.item,
+        type: "item",
       });
     }
   };
 
   const handleDragOver = (event) => {
     const { active, over } = event;
-    
-    if (active.data?.current?.type !== 'item') return;
-
-    clearTimeout(collapseTimeoutRef.current);
-
-    // If not over anything, collapse the last hovered category
-    if (!over) {
-      if (lastHoveredCategoryRef.current) {
-        const shouldCollapse = !originalExpandStateRef.current[lastHoveredCategoryRef.current];
-        if (shouldCollapse) {
-          collapseTimeoutRef.current = setTimeout(() => {
-            setCategories(prevCategories => {
-              const newCategories = prevCategories.map(cat => 
-                cat.id === lastHoveredCategoryRef.current 
-                  ? { ...cat, isExpanded: false } 
-                  : cat
-              );
-              localStorage.setItem('budgetCategories', JSON.stringify(newCategories));
-              return newCategories;
-            });
-          }, 150);
-        }
-      }
-      clearTimeout(expandTimeoutRef.current);
-      lastHoveredCategoryRef.current = null;
+    console.log("DragOver event:", { active, over });
+    if (!active || !over) {
+      console.warn("Drag Over: Missing active or over item.");
       return;
     }
+    if (active.data?.current?.type !== "item") return;
+    clearTimeout(collapseTimeoutRef.current);
 
-    // Find the category we're hovering over
-    const overCategory = categories.find(cat => {
+    // Find the category that is being hovered over by matching either the category id or one of its items.
+    const overCategory = categories.find((cat) => {
       if (cat.id === over.id) return true;
-      return cat.items.some(item => item.id === over.id);
+      return cat.items && cat.items.some((item) => item.id === over.id);
     });
-
+    console.log("Detected overCategory:", overCategory);
     if (!overCategory) return;
 
-    // If we're hovering over a new category
     if (lastHoveredCategoryRef.current !== overCategory.id) {
-      // Collapse the previous category if it wasn't originally expanded
+      // Collapse the previously hovered category if it wasn’t originally expanded.
       if (lastHoveredCategoryRef.current) {
         const shouldCollapse = !originalExpandStateRef.current[lastHoveredCategoryRef.current];
         if (shouldCollapse) {
-          setCategories(prevCategories => {
-            const newCategories = prevCategories.map(cat => 
-              cat.id === lastHoveredCategoryRef.current 
-                ? { ...cat, isExpanded: false } 
-                : cat
-            );
-            localStorage.setItem('budgetCategories', JSON.stringify(newCategories));
-            return newCategories;
-          });
+          dispatch(collapseCategory(lastHoveredCategoryRef.current));
         }
       }
-
       clearTimeout(expandTimeoutRef.current);
       lastHoveredCategoryRef.current = overCategory.id;
-
       if (!overCategory.isExpanded) {
         expandTimeoutRef.current = setTimeout(() => {
-          setCategories(prevCategories => {
-            const newCategories = prevCategories.map(cat => 
-              cat.id === overCategory.id ? { ...cat, isExpanded: true } : cat
-            );
-            localStorage.setItem('budgetCategories', JSON.stringify(newCategories));
-            return newCategories;
-          });
+          console.log("Expanding category:", overCategory.id);
+          dispatch(expandCategory(overCategory.id));
         }, 150);
       }
     }
@@ -142,131 +127,78 @@ const BudgetCategoryList = () => {
   const handleDragEnd = (event) => {
     clearTimeout(expandTimeoutRef.current);
     clearTimeout(collapseTimeoutRef.current);
-    
     const { active, over } = event;
-    
     if (!over) {
-      // Restore original expand states for all categories
-      setCategories(prevCategories => {
-        const newCategories = prevCategories.map(cat => ({
-          ...cat,
-          isExpanded: originalExpandStateRef.current[cat.id]
-        }));
-        localStorage.setItem('budgetCategories', JSON.stringify(newCategories));
-        return newCategories;
-      });
-      setActiveState({ id: null, draggedCategory: null, draggedItem: null, type: null });
+      resetDragState();
       return;
     }
 
-    // Handle category reordering
-    if (active.data?.current?.type === 'category') {
-      if (active.id !== over.id) {
-        setCategories(prevCategories => {
-          const oldIndex = prevCategories.findIndex(cat => cat.id === active.id);
-          const newIndex = prevCategories.findIndex(cat => cat.id === over.id);
-          
-          const newCategories = [...prevCategories];
-          const [movedCategory] = newCategories.splice(oldIndex, 1);
-          newCategories.splice(newIndex, 0, movedCategory);
-          
-          localStorage.setItem('budgetCategories', JSON.stringify(newCategories));
-          return newCategories;
-        });
+    // Category reordering
+    if (active.data?.current?.type === "category") {
+      const oldIndex = categories.findIndex((cat) => cat.id === active.id);
+      const newIndex = categories.findIndex((cat) => cat.id === over.id);
+      if (oldIndex !== newIndex) {
+        const updatedCategories = arrayMove(categories, oldIndex, newIndex).map((cat, index) => ({
+          ...cat,
+          order: index,
+        }));
+        dispatch(updateCategoryOrderOptimistic(updatedCategories));
+        dispatch(updateCategoryOrderAsync(updatedCategories));
       }
     }
-    // Handle item movement
-    else if (active.data?.current?.type === 'item') {
+    // Handle item movement (including cross-category moves)
+    else if (active.data?.current?.type === "item") {
       const activeId = active.id;
-      const overId = over.id;
-      
-      setCategories(prevCategories => {
-        const sourceCategory = prevCategories.find(cat => 
-          cat.items.some(item => item.id === activeId)
+      let targetCategoryId = null;
+      if (over.data?.current?.type === "category") {
+        targetCategoryId = over.id;
+      } else {
+        const targetCategory = categories.find((cat) =>
+          cat.items && cat.items.some((item) => item.id === over.id)
         );
-        const targetCategory = prevCategories.find(cat => 
-          cat.id === overId || cat.items.some(item => item.id === overId)
-        );
-
-        if (!sourceCategory || !targetCategory) return prevCategories;
-
-        const newCategories = prevCategories.map(category => {
-          // Moving within the same category
-          if (sourceCategory.id === targetCategory.id && category.id === sourceCategory.id) {
-            const oldIndex = category.items.findIndex(item => item.id === activeId);
-            const newIndex = category.items.findIndex(item => item.id === overId);
-            
-            if (oldIndex === -1 || newIndex === -1) return category;
-            
-            const newItems = arrayMove([...category.items], oldIndex, newIndex);
-            return { ...category, items: newItems };
-          }
-          
-          // Moving between different categories
-          if (sourceCategory.id !== targetCategory.id) {
-            // Remove from source category
-            if (category.id === sourceCategory.id) {
-              return {
-                ...category,
-                items: category.items.filter(item => item.id !== activeId)
-              };
-            }
-            // Add to target category
-            if (category.id === targetCategory.id) {
-              const itemToMove = sourceCategory.items.find(item => item.id === activeId);
-              const updatedItem = { ...itemToMove, categoryId: targetCategory.id };
-              
-              if (over.data?.current?.type === 'item') {
-                const targetIndex = category.items.findIndex(item => item.id === overId);
-                const newItems = [...category.items];
-                newItems.splice(targetIndex, 0, updatedItem);
-                return { ...category, items: newItems };
-              }
-              return {
-                ...category,
-                items: [...category.items, updatedItem]
-              };
-            }
-          }
-          return category;
-        });
-
-        localStorage.setItem('budgetCategories', JSON.stringify(newCategories));
-        return newCategories;
-      });
+        targetCategoryId = targetCategory ? targetCategory.id : null;
+      }
+      const sourceCategory = categories.find((cat) =>
+        cat.items && cat.items.some((item) => item.id === activeId)
+      );
+      if (!sourceCategory || !targetCategoryId) {
+        resetDragState();
+        return;
+      }
+      const newOrder = (targetCategoryId === sourceCategory.id)
+        ? sourceCategory.items.findIndex((item) => item.id === over.id)
+        : (categories.find((cat) => cat.id === targetCategoryId).items || []).length;
+      dispatch(updateItemOrderAsync({
+        itemId: activeId,
+        newOrder,
+        sourceCategoryId: sourceCategory.id,
+        targetCategoryId,
+      }));
     }
-    
-    lastHoveredCategoryRef.current = null;
-    originalExpandStateRef.current = {};
-    setActiveState({ id: null, draggedCategory: null, draggedItem: null, type: null });
+    resetDragState();
   };
 
   return (
     <div className="space-y-4">
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={rectIntersection} // or try rectIntersection
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <SortableContext items={categories.map(cat => cat.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={categories.map((cat) => cat.id)} strategy={verticalListSortingStrategy}>
           {categories.map((category) => (
-            <SortableCategory
-              key={category.id}
-              category={category}
-              activeState={activeState}
-              setActiveState={setActiveState}
-            />
+            <SortableCategory key={category.id} category={category} />
           ))}
         </SortableContext>
         <DragOverlay>
-          {activeState.type === 'category' && activeState.draggedCategory && (
+          {activeState.type === "category" && activeState.draggedCategory && (
             <div className="bg-white rounded-lg shadow-xl border-2 border-blue-500 p-4 opacity-90">
               {activeState.draggedCategory.name}
             </div>
           )}
-          {activeState.type === 'item' && activeState.draggedItem && (
+          {activeState.type === "item" && activeState.draggedItem && (
             <SortableItem
               item={activeState.draggedItem}
               categoryId={activeState.draggedItem.categoryId}

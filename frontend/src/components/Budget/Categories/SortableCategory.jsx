@@ -1,15 +1,16 @@
 import React, { useEffect, useRef } from "react";
-import { ChevronDown, ChevronUp, Plus, Trash2, Pencil } from 'lucide-react';
-import Modal from '../../Modal';
-import { useSortable } from '@dnd-kit/sortable';
-import { useDroppable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
-import ItemList from './Items/ItemList';
-import ReactDOM from 'react-dom';
-import { useCategoryContext } from './CategoryContext';
+import { ChevronDown, ChevronUp, Plus, Trash2, Pencil } from "lucide-react";
+import Modal from "../../Modal";
+import { useSortable } from "@dnd-kit/sortable";
+import { useDroppable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
+import ItemList from "./Items/ItemList";
+import ReactDOM from "react-dom";
+import { useDispatch } from "react-redux";
+import { renameCategoryAsync, toggleCategory, deleteCategoryAsync } from "../../../store/categorySlice";
 
 const SortableCategory = ({ category }) => {
-  const { handleRename, handleToggle, handleDelete } = useCategoryContext();
+  const dispatch = useDispatch();
   const [isModalVisible, setIsModalVisible] = React.useState(false);
   const [modalPosition, setModalPosition] = React.useState({ x: 0, y: 0 });
   const [isEditing, setIsEditing] = React.useState(false);
@@ -23,13 +24,11 @@ const SortableCategory = ({ category }) => {
         setShowControls(false);
       }
     };
-
     if (showControls) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener("mousedown", handleClickOutside);
     }
-
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showControls]);
 
@@ -40,39 +39,37 @@ const SortableCategory = ({ category }) => {
     transform,
     transition,
     isDragging,
-  } = useSortable({ 
+  } = useSortable({
     id: category.id,
-    data: {
-      type: 'category',
-      category
-    }
+    data: { type: "category", category },
   });
 
   const { setNodeRef: setDroppableRef } = useDroppable({
     id: category.id,
-    data: {
-      type: 'category',
-      category
-    }
+    data: { type: "category", category },
   });
 
+  // Combine both sortable and droppable refs
   const setNodeRef = (node) => {
     setSortableRef(node);
     setDroppableRef(node);
   };
 
+  // Ensure the container has a minimum height
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.3 : 1,
-    position: 'relative',
+    position: "relative",
     zIndex: isDragging ? 2 : 0,
-    touchAction: 'none',
+    touchAction: "none",
+    minHeight: "100px", // Adjust as needed so the category area is large enough
   };
 
   const handleToggleClick = (e) => {
     e.stopPropagation();
-    handleToggle(category.id);
+    e.preventDefault();
+    dispatch(toggleCategory(category.id));
   };
 
   const openModal = (e) => {
@@ -90,7 +87,7 @@ const SortableCategory = ({ category }) => {
 
   const handleRenameSubmit = () => {
     if (newName.trim() && newName !== category.name) {
-      handleRename(category.id, newName);
+      dispatch(renameCategoryAsync({ id: category.id, name: newName }));
     }
     setIsEditing(false);
   };
@@ -99,7 +96,7 @@ const SortableCategory = ({ category }) => {
     e.stopPropagation();
     setShowControls(false);
     if (window.confirm("Are you sure you want to remove this category and all its items?")) {
-      handleDelete(category.id);
+      dispatch(deleteCategoryAsync(category.id));
     }
   };
 
@@ -107,7 +104,7 @@ const SortableCategory = ({ category }) => {
     <div
       ref={controlsRef}
       style={{
-        position: 'fixed',
+        position: "fixed",
         top: modalPosition.y,
         left: modalPosition.x,
         zIndex: 1000,
@@ -136,16 +133,12 @@ const SortableCategory = ({ category }) => {
   );
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`bg-white rounded-lg shadow-sm border border-gray-200 mb-4 
-        ${isDragging ? 'shadow-xl ring-2 ring-blue-500' : ''}`}
-    >
+    <div ref={setNodeRef} style={style} className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4">
       <div {...attributes} {...listeners}>
         <button
           onClick={handleToggleClick}
           className="flex items-center justify-between w-full p-4 text-left"
+          onMouseDown={(e) => e.stopPropagation()}
         >
           <div className="relative">
             {isEditing ? (
@@ -155,9 +148,8 @@ const SortableCategory = ({ category }) => {
                 onChange={(e) => setNewName(e.target.value)}
                 onBlur={handleRenameSubmit}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleRenameSubmit();
-                  } else if (e.key === 'Escape') {
+                  if (e.key === "Enter") handleRenameSubmit();
+                  else if (e.key === "Escape") {
                     setIsEditing(false);
                     setNewName(category.name);
                   }
@@ -177,24 +169,21 @@ const SortableCategory = ({ category }) => {
           </div>
           <div className="flex items-center">
             <Plus className="h-5 w-5 text-blue-600 cursor-pointer mr-2" onClick={openModal} />
-            {category.isExpanded ? 
-              <ChevronUp className="h-5 w-5 text-gray-500" /> : 
+            {category.isExpanded ? (
+              <ChevronUp className="h-5 w-5 text-gray-500" />
+            ) : (
               <ChevronDown className="h-5 w-5 text-gray-500" />
-            }
+            )}
           </div>
         </button>
       </div>
-      
+
       {category.isExpanded && (
         <div className="p-4 pt-0">
-          <ItemList
-            key={`${category.id}-${category.items.length}`}
-            items={category.items}
-            categoryId={category.id}
-          />
+          <ItemList categoryId={category.id} items={category.items} />
         </div>
       )}
-      
+
       <Modal
         isOpen={isModalVisible}
         onClose={() => setIsModalVisible(false)}
