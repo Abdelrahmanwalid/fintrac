@@ -9,9 +9,20 @@ const SortableItem = ({ item, categoryId }) => {
   const dispatch = useDispatch();
   const selectedItem = useSelector((state) => state.items.selectedItem);
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: item._id, // This should match the `id` used in the parent components
-    data: { type: "item", item: { ...item, categoryId } }, // Include type and the item details
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({
+    id: item._id, // Must match item IDs in the SortableContext
+    data: {
+      type: "item",
+      containerId: categoryId, // <<--- Add this to ensure 'over.data?.current?.containerId' is set
+      item
+    },
   });
 
   const style = {
@@ -20,9 +31,8 @@ const SortableItem = ({ item, categoryId }) => {
     opacity: isDragging ? 0.5 : 1,
     cursor: "grab",
     position: "relative",
-    zIndex: isDragging ? 9999 : "auto", // Ensures dragged item is on top
+    zIndex: isDragging ? 9999 : "auto",
   };
-  
 
   const isSelected = selectedItem?._id === item._id;
 
@@ -35,9 +45,16 @@ const SortableItem = ({ item, categoryId }) => {
         ${isSelected ? "bg-blue-50 border-blue-200" : ""}
         transition-shadow duration-200`}
     >
-      <div {...attributes} {...listeners} className="relative px-2 py-2 cursor-grab active:cursor-grabbing">
+      {/* Drag handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="relative px-2 py-2 cursor-grab active:cursor-grabbing"
+      >
         <GripVertical className="h-5 w-5 text-gray-400" />
       </div>
+
+      {/* Item content */}
       <button
         onClick={() => dispatch(selectItem(item))}
         className={`flex-grow p-2 text-left rounded-lg transition-all duration-200 

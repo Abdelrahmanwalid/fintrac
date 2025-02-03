@@ -15,7 +15,7 @@ import {
 import SortableCategory from "./SortableCategory";
 import SortableItem from "./Items/SortableItem";
 
-// Import Redux stuff
+// Redux
 import { useSelector, useDispatch } from "react-redux";
 import {
   updateCategoryOrderAsync,
@@ -31,18 +31,17 @@ const BudgetCategoryList = () => {
   const dispatch = useDispatch();
   // categories from categorySlice
   const categories = useSelector((state) => state.categories.categories);
-  // items from itemSlice, so we can reorder them properly
+  // items from itemSlice
   const itemsByCategory = useSelector((state) => state.items.itemsByCategory);
   const selectedItem = useSelector((state) => state.items.selectedItem);
 
-  // Refs for auto-expanding categories during drag
+  // For auto-expanding categories
   const expandTimeoutRef = useRef(null);
   const collapseTimeoutRef = useRef(null);
   const lastHoveredCategoryRef = useRef(null);
-  // Track which categories were expanded pre-drag, so we can collapse them again
   const originalExpandStateRef = useRef({});
 
-  // Local state for the DragOverlay
+  // Local drag state (for DragOverlay)
   const [activeState, setActiveState] = useState({
     id: null,
     draggedCategory: null,
@@ -50,18 +49,18 @@ const BudgetCategoryList = () => {
     type: null,
   });
 
-  // Configure sensors (keep the delay, distance, and the user’s tolerance)
+  // Configure PointerSensor
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
         delay: 200,
-        tolerance: 5, // not officially documented, but we keep it
+        tolerance: 5,
       },
     })
   );
 
-  // Helper to reset local drag data
+  // Reset local refs/states
   const resetDragState = () => {
     lastHoveredCategoryRef.current = null;
     originalExpandStateRef.current = {};
@@ -79,14 +78,14 @@ const BudgetCategoryList = () => {
     }
     console.log("Drag Start:", active);
 
-    // Save expansions for each category
+    // Save expansions
     originalExpandStateRef.current = categories.reduce((acc, cat) => {
       acc[cat.id] = cat.isExpanded;
       return acc;
     }, {});
 
-    const activeItem = active.data.current;
-    if (activeItem.type === "category") {
+    const activeData = active.data.current;
+    if (activeData.type === "category") {
       const draggedCategory = categories.find((cat) => cat.id === active.id);
       if (draggedCategory) {
         setActiveState({
@@ -96,18 +95,18 @@ const BudgetCategoryList = () => {
           type: "category",
         });
       }
-    } else if (activeItem.type === "item") {
+    } else if (activeData.type === "item") {
       setActiveState({
         id: active.id,
         draggedCategory: null,
-        draggedItem: activeItem.item,
+        draggedItem: activeData.item,
         type: "item",
       });
     }
   };
 
   // ----------------------
-  // onDragOver (auto-expand categories)
+  // onDragOver (expand categories)
   // ----------------------
   const handleDragOver = (event) => {
     const { active, over } = event;
@@ -115,23 +114,20 @@ const BudgetCategoryList = () => {
     if (active.data?.current?.type !== "item") return;
     clearTimeout(collapseTimeoutRef.current);
 
-    // Find the category being hovered
+    // Find the category hovered
     const overCategory = categories.find((cat) => {
-      if (cat.id === over.id) {
-        return true; // hovered over the category container itself
-      }
+      if (cat.id === over.id) return true;
       const catItems = itemsByCategory[cat.id] || [];
       return catItems.some((itm) => itm._id === over.id);
     });
 
     if (!overCategory) return;
 
-    // If we switched hovered categories, collapse the old one if needed, expand the new one
+    // Possibly collapse old hovered category, expand new hovered
     if (lastHoveredCategoryRef.current !== overCategory.id) {
       if (lastHoveredCategoryRef.current) {
         const oldCatId = lastHoveredCategoryRef.current;
         const wasExpanded = originalExpandStateRef.current[oldCatId];
-        // If it was NOT originally expanded, we collapse it
         if (!wasExpanded) {
           dispatch(collapseCategory(oldCatId));
         }
@@ -153,50 +149,53 @@ const BudgetCategoryList = () => {
   const handleDragEnd = (event) => {
     clearTimeout(expandTimeoutRef.current);
     clearTimeout(collapseTimeoutRef.current);
-
+  
     const { active, over } = event;
+  
+    console.log("HANDLE DRAG END");
+    console.log("  active:", active.id, " type:", active.data?.current?.type);
+    console.log("  over:", over?.id, " type:", over?.data?.current?.type, " containerId:", over?.data?.current?.containerId);
+  
     if (!over) {
+      console.log("No 'over' => no reorder");
       resetDragState();
       return;
     }
+  
     const activeData = active.data?.current;
     if (!activeData) {
+      console.log("No activeData => no reorder");
       resetDragState();
       return;
     }
-
-    // ======================
     // 1) Category Reorder
-    // ======================
     if (activeData.type === "category") {
+      console.log("Category reorder block");
       const oldIndex = categories.findIndex((cat) => cat.id === active.id);
       const newIndex = categories.findIndex((cat) => cat.id === over.id);
 
       if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-        // Reorder array
         const updated = [...categories];
         const [removed] = updated.splice(oldIndex, 1);
         updated.splice(newIndex, 0, removed);
 
-        // Reassign 'order'
+        // Reassign .order
         const finalCategories = updated.map((cat, i) => ({
           ...cat,
           order: i,
         }));
 
-        // Optimistic local update
         dispatch(updateCategoryOrderOptimistic(finalCategories));
-        // Server update
         dispatch(updateCategoryOrderAsync(finalCategories));
       }
     }
-    // ======================
-    // 2) Item Reorder
-    // ======================
-    else if (activeData.type === "item") {
-      const activeId = active.id; // the item._id
 
-      // find the source category by scanning itemsByCategory
+    // 2) Item Reorder
+    else if (activeData.type === "item") {
+      console.log("Item reorder block");
+      const activeId = active.id; // item._id
+
+      // Find source category via itemsByCategory
       const sourceCategoryId = Object.keys(itemsByCategory).find((catId) =>
         (itemsByCategory[catId] || []).some((itm) => itm._id === activeId)
       );
@@ -205,7 +204,7 @@ const BudgetCategoryList = () => {
         return;
       }
 
-      // figure out the target category
+      // Determine target category
       let targetCategoryId = null;
       if (over.data?.current?.type === "category") {
         targetCategoryId = over.id;
@@ -217,42 +216,45 @@ const BudgetCategoryList = () => {
         return;
       }
 
-      // same-category reorder
+      // same-category reorder (SIMPLE)
       if (targetCategoryId === sourceCategoryId) {
+        console.log("SAME-CATEGORY reorder");
         const itemsArray = itemsByCategory[sourceCategoryId] || [];
+        // oldIndex
         const oldIndex = itemsArray.findIndex((itm) => itm._id === activeId);
-
+        // newIndex
         const overItemId = over.id;
-        let newIndex = itemsArray.findIndex((itm) => itm._id === overItemId);
+        const newIndex = itemsArray.findIndex((itm) => itm._id === overItemId);
 
-        console.log("Item Reorder Debug => oldIndex:", oldIndex, " raw newIndex:", newIndex);
+        console.log("Item Reorder Debug => oldIndex:", oldIndex, "raw newIndex:", newIndex);
 
-        // If we didn't find an item or the user is dropping on itself, place at the end
-        if (newIndex === -1 || overItemId === activeId) {
-          newIndex = itemsArray.length - 1;
+        // If we can't find that 'over' item or we dropped on the same item => do nothing
+        if (oldIndex === -1 || newIndex === -1 || overItemId === activeId) {
+          console.log("No reorder triggered (invalid drop).");
+          resetDragState();
+          return;
         }
-        // If dragging the item downward, place it below that item
-        if (oldIndex < newIndex) {
-          newIndex -= 1;
-        }
-        if (newIndex < 0) newIndex = 0;
 
-        console.log("Corrected newIndex:", newIndex);
-        if (newIndex !== oldIndex) {
-          dispatch(
-            updateItemOrderAsync({
-              itemId: activeId,
-              newOrder: newIndex,
-              sourceCategoryId,
-              targetCategoryId: sourceCategoryId,
-            })
-          );
-        } else {
+        // If same index => no move
+        if (oldIndex === newIndex) {
           console.log("No reorder triggered (same index).");
+          resetDragState();
+          return;
         }
+
+        // Otherwise, reorder
+        dispatch(
+          updateItemOrderAsync({
+            itemId: activeId,
+            newOrder: newIndex,
+            sourceCategoryId,
+            targetCategoryId: sourceCategoryId,
+          })
+        );
       }
       // cross-category move
       else {
+        console.log("CROSS-CATEGORY reorder")
         const targetItems = itemsByCategory[targetCategoryId] || [];
         let newIndex = targetItems.length;
 
@@ -292,14 +294,12 @@ const BudgetCategoryList = () => {
           strategy={verticalListSortingStrategy}
         >
           {categories.map((category) => {
-            // read items from itemSlice
             const itemsForCat = itemsByCategory[category.id] || [];
 
             return (
               <SortableCategory key={category.id} category={category}>
                 {category.isExpanded && (
                   <div style={{ marginLeft: "2rem", marginTop: "0.5rem" }}>
-                    {/* Nested SortableContext for items in this category */}
                     <SortableContext
                       items={itemsForCat.map((itm) => itm._id)}
                       strategy={verticalListSortingStrategy}
