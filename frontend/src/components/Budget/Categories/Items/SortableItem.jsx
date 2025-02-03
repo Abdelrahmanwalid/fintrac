@@ -10,18 +10,19 @@ const SortableItem = ({ item, categoryId }) => {
   const selectedItem = useSelector((state) => state.items.selectedItem);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: item._id, // Use MongoDB _id
-    data: { type: "item", item: { ...item, categoryId } },
+    id: item._id, // This should match the `id` used in the parent components
+    data: { type: "item", item: { ...item, categoryId } }, // Include type and the item details
   });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition: transition || "transform 200ms cubic-bezier(0.25, 1, 0.5, 1)",
     opacity: isDragging ? 0.5 : 1,
-    cursor: "default",
+    cursor: "grab",
     position: "relative",
-    zIndex: isDragging ? 999 : 1,
+    zIndex: isDragging ? 9999 : "auto", // Ensures dragged item is on top
   };
+  
 
   const isSelected = selectedItem?._id === item._id;
 

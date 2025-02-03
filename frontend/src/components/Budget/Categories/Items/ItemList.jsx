@@ -15,7 +15,6 @@ const ItemList = ({ categoryId }) => {
   }, [dispatch]);
 
   // Debugging: Log valid items
-  console.log("Items in category:", categoryId, items);
   items.forEach((item, index) => {
     if (!item || !item.name) {
       console.error(`Invalid item at index ${index}:`, item);
@@ -44,7 +43,6 @@ const ItemList = ({ categoryId }) => {
     }));
   };
   return (
-    <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext 
         items={items.filter(item => item?._id).map(item => item._id)} // Ensure valid item IDs
         strategy={verticalListSortingStrategy}
@@ -67,7 +65,6 @@ const ItemList = ({ categoryId }) => {
           )}
         </ul>
       </SortableContext>
-    </DndContext>
   );
 };
 

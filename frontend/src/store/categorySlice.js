@@ -12,19 +12,16 @@ import {
 export const fetchCategoriesAsync = createAsyncThunk(
   'categories/fetchCategories',
   async (_, { rejectWithValue }) => {
-    try {
-      const response = await fetchCategories();
-      return response.map((cat) => ({
-        ...cat,
-        id: cat._id,
-        order: cat.order,
-        isExpanded: false // Initialize expansion state locally
-      }));
-    } catch (error) {
-      return rejectWithValue(error.message);
-    }
+    const response = await fetchCategories();
+    return response.map((cat) => ({
+      ...cat,
+      id: cat._id,
+      order: cat.order,
+      isExpanded: false // Initialize expansion state locally
+    }));
   }
 );
+
 
 export const addCategoryAsync = createAsyncThunk(
   'categories/addCategory',
@@ -158,6 +155,9 @@ const categorySlice = createSlice({
       .addCase(updateCategoryOrderAsync.fulfilled, (state, action) => {
         state.categories = action.payload.map(cat => ({
           ...cat,
+          id: cat._id,
+          order: cat.order,
+          // preserve isExpanded from existing state
           isExpanded: state.categories.find(c => c.id === cat.id)?.isExpanded || false
         }));
       })

@@ -56,8 +56,8 @@ export const updateItemOrderAsync = createAsyncThunk(
   async ({ itemId, newOrder, sourceCategoryId, targetCategoryId }, { dispatch, rejectWithValue }) => {
     try {
       await updateItemOrder(itemId, newOrder, sourceCategoryId, targetCategoryId);
-      // After successful update, refetch items to update state.
-      await dispatch(fetchItemsAsync());
+      // After successful update, re-fetch items to ensure we have correct ordering from server
+      dispatch(fetchItemsAsync());
       return { itemId, newOrder, sourceCategoryId, targetCategoryId };
     } catch (error) {
       return rejectWithValue(error.message);
@@ -105,10 +105,13 @@ const itemSlice = createSlice({
         state.itemsByCategory[categoryId].sort((a, b) => a.order - b.order);
       });
     })
+    
      .addCase(fetchItemsAsync.rejected, (state, action) => {
       state.error = action.payload;
+    })
+    .addCase(updateItemOrderAsync.rejected, (state, action) => {
+      state.error = action.payload || 'Failed to reorder item';
     });
-    
     
 },
 });

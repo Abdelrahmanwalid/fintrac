@@ -61,10 +61,11 @@ const SortableCategory = ({ category }) => {
     transition,
     opacity: isDragging ? 0.3 : 1,
     position: "relative",
-    zIndex: isDragging ? 2 : 0,
+    zIndex: isDragging ? 1 : 0, // Keep categories behind dragged item
     touchAction: "none",
-    minHeight: "100px", // Adjust as needed so the category area is large enough
+    minHeight: "100px",
   };
+  
 
   const handleToggleClick = (e) => {
     e.stopPropagation();
