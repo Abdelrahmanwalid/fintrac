@@ -1,13 +1,17 @@
-import React from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
-import { useItemContext } from '../Categories/Items/ItemContext';
-import { useCategoryContext } from '../Categories/CategoryContext';
+import React from "react";
+import { Pencil, Trash2 } from "lucide-react";
+import { useDispatch } from "react-redux";
+// Import your Redux actions:
+import {
+  updateItemAsync,
+  selectItem,
+  deleteItemAsync,
+} from "../../../store/itemSlice";
 
 const DetailHeader = ({ item }) => {
+  const dispatch = useDispatch();
   const [isRenamingItem, setIsRenamingItem] = React.useState(false);
-  const [newItemName, setNewItemName] = React.useState(item?.name || '');
-  const { handleUpdateItem, handleSelectItem } = useItemContext();
-  const { categories, setCategories } = useCategoryContext();
+  const [newItemName, setNewItemName] = React.useState(item?.name || "");
 
   React.useEffect(() => {
     if (item) {
@@ -17,6 +21,7 @@ const DetailHeader = ({ item }) => {
 
   if (!item) return null;
 
+  // 1) rename logic
   const handleRenameClick = () => {
     setIsRenamingItem(true);
   };
@@ -25,29 +30,29 @@ const DetailHeader = ({ item }) => {
     setIsRenamingItem(false);
     if (newItemName.trim() && newItemName !== item.name) {
       const updatedItem = { ...item, name: newItemName.trim() };
-      handleUpdateItem(updatedItem);
-      handleSelectItem(updatedItem);
+
+      // Dispatch a Redux update instead of localStorage
+      dispatch(
+        updateItemAsync({
+          itemId: updatedItem._id, // or updatedItem.id if that's your key
+          itemData: updatedItem,
+        })
+      );
+      // Optionally re-select this updated item in Redux
+      dispatch(selectItem(updatedItem));
     } else {
       setNewItemName(item.name);
     }
   };
 
+  // 2) delete logic
   const handleDelete = () => {
-    const updatedCategories = categories.map(category => {
-      if (category.id === item.categoryId) {
-        return {
-          ...category,
-          items: category.items.filter(i => i.id !== item.id)
-        };
-      }
-      return category;
-    });
-    
-    setCategories(updatedCategories);
-    localStorage.setItem('budgetCategories', JSON.stringify(updatedCategories));
-    window.dispatchEvent(new Event('storage'));
-    window.dispatchEvent(new Event('categoriesUpdated'));
-    handleSelectItem(null);
+    if (window.confirm("Are you sure you want to delete this item?")) {
+      // Dispatch your delete thunk
+      dispatch(deleteItemAsync(item._id));
+      // Optionally clear the selected item
+      dispatch(selectItem(null));
+    }
   };
 
   return (
@@ -61,8 +66,8 @@ const DetailHeader = ({ item }) => {
             className="text-2xl font-bold text-gray-900 border rounded px-2 py-1 flex-1"
             autoFocus
             onKeyDown={(e) => {
-              if (e.key === 'Enter') handleRenameSubmit();
-              if (e.key === 'Escape') {
+              if (e.key === "Enter") handleRenameSubmit();
+              if (e.key === "Escape") {
                 setNewItemName(item.name);
                 setIsRenamingItem(false);
               }
@@ -74,18 +79,14 @@ const DetailHeader = ({ item }) => {
         <h3 className="text-2xl font-bold text-gray-900">{item.name}</h3>
       )}
       <div className="flex items-center space-x-2">
-        <button 
+        <button
           onClick={handleRenameClick}
           className="p-1 hover:bg-gray-100 rounded-full transition-colors"
         >
           <Pencil className="h-5 w-5 text-gray-600 hover:text-gray-800" />
         </button>
-        <button 
-          onClick={() => {
-            if (window.confirm('Are you sure you want to delete this item?')) {
-              handleDelete();
-            }
-          }}
+        <button
+          onClick={handleDelete}
           className="p-1 hover:bg-red-100 rounded-full transition-colors"
         >
           <Trash2 className="h-5 w-5 text-red-600 hover:text-red-800" />

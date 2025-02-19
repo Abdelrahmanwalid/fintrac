@@ -1,11 +1,16 @@
-// frontend/src/components/Budget/DetailView/DetailView.js
+import React from "react";
+import { useSelector, useDispatch } from "react-redux";
+import BudgetDetailView from "./BudgetDetailView";
 
-import React from 'react';
-import BudgetDetailView from './BudgetDetailView';
-import { useItemContext } from '../Categories/Items/ItemContext';
+// Import your Redux actions
+import { updateItemAsync, deleteItemAsync } from "../../../store/itemSlice"; 
 
-const DetailView = () => {
-  const { selectedItem, handleUpdateItem, handleDeleteItem } = useItemContext();
+function DetailView() {
+  const dispatch = useDispatch();
+
+  // 1) Grab the selected item from Redux. 
+  //    (Assuming your itemSlice has "selectedItem" or you have a selector.)
+  const selectedItem = useSelector((state) => state.items.selectedItem);
 
   if (!selectedItem) {
     return (
@@ -15,17 +20,29 @@ const DetailView = () => {
     );
   }
 
+  // 2) Handlers that dispatch your Redux thunks
+  const handleUpdateItem = (updates) => {
+    dispatch(
+      updateItemAsync({
+        itemId: selectedItem._id, // or .id if that's how your item is stored
+        itemData: { ...selectedItem, ...updates },
+      })
+    );
+  };
+
+  const handleDeleteItem = () => {
+    if (window.confirm("Are you sure you want to delete this item?")) {
+      dispatch(deleteItemAsync(selectedItem._id)); 
+    }
+  };
+
   return (
     <BudgetDetailView
       item={selectedItem}
-      onUpdate={(updates) => handleUpdateItem(selectedItem.categoryId, selectedItem.id, updates)}
-      onRemove={() => {
-        if (window.confirm('Are you sure you want to delete this item?')) {
-          handleDeleteItem(selectedItem.categoryId, selectedItem.id);
-        }
-      }}
+      onUpdate={handleUpdateItem}
+      onRemove={handleDeleteItem}
     />
   );
-};
+}
 
 export default DetailView;

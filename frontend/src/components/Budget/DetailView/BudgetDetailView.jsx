@@ -1,54 +1,99 @@
-import React, { useState, useEffect } from 'react';
-import { DollarSign } from 'lucide-react';
-import DetailHeader from './DetailHeader';
-import BudgetInfo from './BudgetInfo';
-import FrequencyInfo from './FrequencyInfo';
-import ProgressInfo from './ProgressInfo';
-import ActionButtons from './ActionButtons';
-import { useItemContext } from '../Categories/Items/ItemContext';
-import { useCategoryContext } from '../Categories/CategoryContext';
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { DollarSign } from "lucide-react";
 
+import DetailHeader from "./DetailHeader";
+import BudgetInfo from "./BudgetInfo";
+import FrequencyInfo from "./FrequencyInfo";
+import ProgressInfo from "./ProgressInfo";
+import ActionButtons from "./ActionButtons";
+
+// Import your Redux actions/thunks
+import { updateItemAsync } from "../../../store/itemSlice";
+
+/**
+ * This component now expects either an `itemId` prop OR you can select
+ * the "selected item" from Redux if that logic exists in your slice.
+ *
+ * For example, we assume you're storing a "selectedItem" in Redux or
+ * you pass "item" as a direct prop. If you want to pass itemId, you
+ * can select that item from Redux here.
+ */
 const BudgetDetailView = ({ item }) => {
+  const dispatch = useDispatch();
+
+  // If you need categories from Redux:
+  const categories = useSelector((state) => state.categories.categories);
+
+  // If you have a "selectedItem" in Redux, you could do:
+  // const selectedItem = useSelector((state) => state.items.selectedItem);
+  // Then rename "item" => "selectedItem" below if you prefer.
+
+  // Local state
   const [isEditing, setIsEditing] = useState(false);
   const [editedBudget, setEditedBudget] = useState(item ? item.budget : 0);
   const [spentAmount, setSpentAmount] = useState(item ? item.spent : 0);
-  const [originalSpentAmount, setOriginalSpentAmount] = useState(item ? item.spent : 0);
+  const [originalSpentAmount, setOriginalSpentAmount] = useState(
+    item ? item.spent : 0
+  );
   const [originalBudget, setOriginalBudget] = useState(item ? item.budget : 0);
+
   const [isRenamingItem, setIsRenamingItem] = useState(false);
-  const [newItemName, setNewItemName] = useState(item ? item.name : '');
-  const [paymentDate, setPaymentDate] = useState(item ? item.paymentDate : '');
-  const [frequency, setFrequency] = useState(item ? item.frequency : 'monthly');
-  const [customSchedule, setCustomSchedule] = useState(item ? item.customSchedule : '');
-  const [dayOfWeek, setDayOfWeek] = useState('Monday');
-  const [dayOfMonth, setDayOfMonth] = useState('Last Day of Month');
+  const [newItemName, setNewItemName] = useState(item ? item.name : "");
+
+  const [paymentDate, setPaymentDate] = useState(item ? item.paymentDate : "");
+  const [frequency, setFrequency] = useState(item ? item.frequency : "monthly");
+  const [customSchedule, setCustomSchedule] = useState(
+    item ? item.customSchedule : ""
+  );
+  const [dayOfWeek, setDayOfWeek] = useState("Monday");
+  const [dayOfMonth, setDayOfMonth] = useState("Last Day of Month");
   const [dayOfYear, setDayOfYear] = useState(new Date());
 
-  const { handleUpdateItem } = useItemContext();
-  const { categories } = useCategoryContext();
-
+  // On mount or when `item` or `categories` changes,
+  // re-sync local state with the latest data from Redux
   useEffect(() => {
-    if (item) {
-      const currentCategory = categories.find(cat => cat.id === item.categoryId);
-      const currentItem = currentCategory?.items.find(i => i.id === item.id);
-      
-      if (currentItem) {
-        setEditedBudget(currentItem.budget);
-        setSpentAmount(currentItem.spent);
-        setOriginalSpentAmount(currentItem.spent);
-        setOriginalBudget(currentItem.budget);
-        setNewItemName(currentItem.name);
-        setPaymentDate(currentItem.paymentDate);
-        setFrequency(currentItem.frequency);
-        setCustomSchedule(currentItem.customSchedule);
-      }
+    if (!item) return;
+    // Attempt to find the "latest" version in Redux categories
+    const currentCategory = categories.find(
+      (cat) => cat.id === item.categoryId
+    );
+    const currentItem = currentCategory?.items?.find((i) => i.id === item.id);
+
+    if (currentItem) {
+      setEditedBudget(currentItem.budget);
+      setSpentAmount(currentItem.spent);
+      setOriginalSpentAmount(currentItem.spent);
+      setOriginalBudget(currentItem.budget);
+      setNewItemName(currentItem.name);
+      setPaymentDate(currentItem.paymentDate);
+      setFrequency(currentItem.frequency);
+      setCustomSchedule(currentItem.customSchedule);
     }
   }, [item, categories]);
 
+  // Update the item in Redux (which also updates the server)
+  const handleUpdateItemRedux = (updatedItem) => {
+    // We assume your `updateItemAsync` expects:
+    // { itemId, itemData }
+    dispatch(
+      updateItemAsync({
+        itemId: updatedItem.id,
+        itemData: updatedItem,
+      })
+    );
+  };
+
+  // -----------
+  // Editing Logic
+  // -----------
   const handleEditClick = () => {
     setIsEditing(true);
   };
 
   const handleSave = () => {
+    if (!item) return;
+
     const updatedItem = {
       ...item,
       budget: parseFloat(editedBudget),
@@ -60,7 +105,7 @@ const BudgetDetailView = ({ item }) => {
       dayOfMonth,
       dayOfYear,
     };
-    handleUpdateItem(updatedItem);
+    handleUpdateItemRedux(updatedItem);
     setIsEditing(false);
   };
 
@@ -70,59 +115,100 @@ const BudgetDetailView = ({ item }) => {
     setSpentAmount(originalSpentAmount);
   };
 
+  // -----------
+  // Input Handlers
+  // -----------
   const handleSpentChange = (e) => {
+    if (!item) return;
     const value = Math.max(0, Math.min(e.target.value, editedBudget));
     setSpentAmount(value);
-    handleUpdateItem({ ...item, budget: parseFloat(editedBudget), spent: parseFloat(value) });
+    // If you want immediate updates:
+    handleUpdateItemRedux({
+      ...item,
+      budget: parseFloat(editedBudget),
+      spent: parseFloat(value),
+    });
   };
 
   const handleBudgetChange = (e) => {
-    const value = Math.max(0, parseFloat(e.target.value));
+    const value = Math.max(0, parseFloat(e.target.value) || 0);
     setEditedBudget(value);
   };
 
   const handleRemove = () => {
-    handleUpdateItem({ ...item, deleted: true });
+    if (!item) return;
+    handleUpdateItemRedux({ ...item, deleted: true });
   };
 
+  // -----------
+  // Renaming
+  // -----------
   const handleRenameClick = () => {
+    if (!item) return;
     setIsRenamingItem(true);
     setNewItemName(item.name);
   };
 
   const handleRenameSubmit = () => {
+    if (!item) return;
     if (newItemName.trim() && newItemName !== item.name) {
-      handleUpdateItem({ ...item, name: newItemName.trim() });
+      handleUpdateItemRedux({ ...item, name: newItemName.trim() });
     }
     setIsRenamingItem(false);
   };
 
+  // -----------
+  // Payment Calculation
+  // -----------
   const calculateDaysUntilPayment = () => {
     const today = new Date();
-  
-    if (frequency === 'monthly') {
-      let targetDay = dayOfMonth === 'Last Day of Month' ? new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() : parseInt(dayOfMonth);
-      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-  
+
+    if (frequency === "monthly") {
+      let targetDay =
+        dayOfMonth === "Last Day of Month"
+          ? new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
+          : parseInt(dayOfMonth, 10);
+      const daysInMonth = new Date(
+        today.getFullYear(),
+        today.getMonth() + 1,
+        0
+      ).getDate();
+
       if (targetDay > daysInMonth) {
         targetDay = daysInMonth;
       }
-  
-      let nextPaymentDate = new Date(today.getFullYear(), today.getMonth(), targetDay);
+
+      let nextPaymentDate = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        targetDay
+      );
       if (nextPaymentDate < today) {
         nextPaymentDate.setMonth(nextPaymentDate.getMonth() + 1);
-        const newDaysInMonth = new Date(nextPaymentDate.getFullYear(), nextPaymentDate.getMonth() + 1, 0).getDate();
+        const newDaysInMonth = new Date(
+          nextPaymentDate.getFullYear(),
+          nextPaymentDate.getMonth() + 1,
+          0
+        ).getDate();
         if (targetDay > newDaysInMonth) {
           nextPaymentDate.setDate(newDaysInMonth);
         }
       }
-  
+
       const diffTime = Math.abs(nextPaymentDate - today);
       return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     }
-  
-    if (frequency === 'weekly') {
-      const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    if (frequency === "weekly") {
+      const daysOfWeek = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ];
       const targetDayIndex = daysOfWeek.indexOf(dayOfWeek);
       const todayIndex = today.getDay();
       let daysUntilNext = targetDayIndex - todayIndex;
@@ -131,26 +217,31 @@ const BudgetDetailView = ({ item }) => {
       }
       return daysUntilNext;
     }
-  
-    if (frequency === 'yearly') {
+
+    if (frequency === "yearly") {
       const nextPaymentDate = new Date(dayOfYear);
       if (nextPaymentDate < today) {
         nextPaymentDate.setFullYear(today.getFullYear() + 1);
       } else {
         nextPaymentDate.setFullYear(today.getFullYear());
       }
-      
+
       const diffTime = nextPaymentDate - today;
       const daysUntil = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
-      return daysUntil < 0 ? 365 + daysUntil : daysUntil === 0 ? 365 : Math.min(daysUntil, 365);
+
+      return daysUntil < 0
+        ? 365 + daysUntil
+        : daysUntil === 0
+        ? 365
+        : Math.min(daysUntil, 365);
     }
-  
+
     return 0;
   };
 
   const daysUntilPayment = calculateDaysUntilPayment();
 
+  // If no item, show placeholder
   if (!item) {
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
@@ -190,17 +281,17 @@ const BudgetDetailView = ({ item }) => {
         isOverBudget={isOverBudget}
       />
       <FrequencyInfo
-  frequency={frequency}
-  isEditing={isEditing}
-  dayOfMonth={dayOfMonth}
-  setDayOfMonth={setDayOfMonth}
-  daysUntilPayment={daysUntilPayment}
-  setFrequency={setFrequency}
-  dayOfWeek={dayOfWeek}
-  setDayOfWeek={setDayOfWeek}
-  yearlyDate={dayOfYear}
-  setYearlyDate={setDayOfYear}
-/>
+        frequency={frequency}
+        isEditing={isEditing}
+        dayOfMonth={dayOfMonth}
+        setDayOfMonth={setDayOfMonth}
+        daysUntilPayment={daysUntilPayment}
+        setFrequency={setFrequency}
+        dayOfWeek={dayOfWeek}
+        setDayOfWeek={setDayOfWeek}
+        yearlyDate={dayOfYear}
+        setYearlyDate={setDayOfYear}
+      />
       <ProgressInfo
         percentSpent={percentSpent}
         isOverBudget={isOverBudget}
