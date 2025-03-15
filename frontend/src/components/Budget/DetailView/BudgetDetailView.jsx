@@ -11,25 +11,11 @@ import ActionButtons from "./ActionButtons";
 // Import your Redux actions/thunks
 import { updateItemAsync } from "../../../store/itemSlice";
 
-/**
- * This component now expects either an `itemId` prop OR you can select
- * the "selected item" from Redux if that logic exists in your slice.
- *
- * For example, we assume you're storing a "selectedItem" in Redux or
- * you pass "item" as a direct prop. If you want to pass itemId, you
- * can select that item from Redux here.
- */
 const BudgetDetailView = ({ item }) => {
   const dispatch = useDispatch();
-
-  // If you need categories from Redux:
   const categories = useSelector((state) => state.categories.categories);
 
-  // If you have a "selectedItem" in Redux, you could do:
-  // const selectedItem = useSelector((state) => state.items.selectedItem);
-  // Then rename "item" => "selectedItem" below if you prefer.
-
-  // Local state
+  // Use backend-aligned field names
   const [isEditing, setIsEditing] = useState(false);
   const [editedBudget, setEditedBudget] = useState(item ? item.budget : 0);
   const [spentAmount, setSpentAmount] = useState(item ? item.spent : 0);
@@ -37,21 +23,32 @@ const BudgetDetailView = ({ item }) => {
     item ? item.spent : 0
   );
   const [originalBudget, setOriginalBudget] = useState(item ? item.budget : 0);
-
   const [isRenamingItem, setIsRenamingItem] = useState(false);
   const [newItemName, setNewItemName] = useState(item ? item.name : "");
-
   const [paymentDate, setPaymentDate] = useState(item ? item.paymentDate : "");
   const [frequency, setFrequency] = useState(item ? item.frequency : "monthly");
   const [customSchedule, setCustomSchedule] = useState(
     item ? item.customSchedule : ""
   );
-  const [dayOfWeek, setDayOfWeek] = useState("Monday");
-  const [dayOfMonth, setDayOfMonth] = useState("Last Day of Month");
-  const [dayOfYear, setDayOfYear] = useState(new Date());
+  const [paymentDayOfWeek, setPaymentDayOfWeek] = useState(
+    item ? item.paymentDayOfWeek || "Monday" : "Monday"
+  );
+  const [paymentDayOfMonth, setPaymentDayOfMonth] = useState(
+    item
+      ? item.isLastDayOfMonth
+        ? "Last Day of Month"
+        : item.paymentDayOfMonth || "1"
+      : "Last Day of Month"
+  );
+  const [paymentDateOfYear, setPaymentDateOfYear] = useState(
+    item
+      ? item.paymentDateOfYear
+        ? new Date(item.paymentDateOfYear)
+        : new Date()
+      : new Date()
+  );
 
-  // On mount or when `item` or `categories` changes,
-  // re-sync local state with the latest data from Redux
+  // Sync state with item changes
   useEffect(() => {
     if (!item) return;
     const currentCategory = categories.find(
@@ -60,7 +57,7 @@ const BudgetDetailView = ({ item }) => {
     const currentItem = currentCategory?.items?.find((i) => i.id === item.id);
 
     if (currentItem) {
-      setNewItemName(currentItem.name); // Update state when item changes
+      setNewItemName(currentItem.name);
       setEditedBudget(currentItem.budget);
       setSpentAmount(currentItem.spent);
       setOriginalSpentAmount(currentItem.spent);
@@ -68,21 +65,28 @@ const BudgetDetailView = ({ item }) => {
       setPaymentDate(currentItem.paymentDate);
       setFrequency(currentItem.frequency);
       setCustomSchedule(currentItem.customSchedule);
+      setPaymentDayOfWeek(currentItem.paymentDayOfWeek || "Monday");
+      setPaymentDayOfMonth(
+        currentItem.isLastDayOfMonth
+          ? "Last Day of Month"
+          : currentItem.paymentDayOfMonth || "1"
+      );
+      setPaymentDateOfYear(
+        currentItem.paymentDateOfYear
+          ? new Date(currentItem.paymentDateOfYear)
+          : new Date()
+      );
     }
-  }, [item, categories, newItemName]);
+  }, [item, categories]);
 
-  // Update the item in Redux (which also updates the server)
   const handleUpdateItemRedux = (updatedItem) => {
-    // We assume your `updateItemAsync` expects:
-    // { itemId, itemData }
     dispatch(
       updateItemAsync({
-        itemId: updatedItem.id,
+        itemId: updatedItem.id || updatedItem._id,
         itemData: updatedItem,
       })
     );
   };
-
   // -----------
   // Editing Logic
   // -----------
@@ -92,7 +96,6 @@ const BudgetDetailView = ({ item }) => {
 
   const handleSave = () => {
     if (!item) return;
-
     const updatedItem = {
       ...item,
       budget: parseFloat(editedBudget),
@@ -100,9 +103,14 @@ const BudgetDetailView = ({ item }) => {
       paymentDate,
       frequency,
       customSchedule,
-      dayOfWeek,
-      dayOfMonth,
-      dayOfYear,
+      paymentDayOfWeek: frequency === "weekly" ? paymentDayOfWeek : undefined,
+      paymentDayOfMonth:
+        frequency === "monthly" && paymentDayOfMonth !== "Last Day of Month"
+          ? parseInt(paymentDayOfMonth)
+          : undefined,
+      isLastDayOfMonth:
+        frequency === "monthly" && paymentDayOfMonth === "Last Day of Month",
+      paymentDateOfYear: frequency === "yearly" ? paymentDateOfYear : undefined,
     };
     handleUpdateItemRedux(updatedItem);
     setIsEditing(false);
@@ -171,9 +179,9 @@ const BudgetDetailView = ({ item }) => {
 
     if (frequency === "monthly") {
       let targetDay =
-        dayOfMonth === "Last Day of Month"
+        paymentDayOfMonth === "Last Day of Month"
           ? new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
-          : parseInt(dayOfMonth, 10);
+          : parseInt(paymentDayOfMonth, 10);
       const daysInMonth = new Date(
         today.getFullYear(),
         today.getMonth() + 1,
@@ -215,7 +223,7 @@ const BudgetDetailView = ({ item }) => {
         "Friday",
         "Saturday",
       ];
-      const targetDayIndex = daysOfWeek.indexOf(dayOfWeek);
+      const targetDayIndex = daysOfWeek.indexOf(paymentDayOfWeek);
       const todayIndex = today.getDay();
       let daysUntilNext = targetDayIndex - todayIndex;
       if (daysUntilNext <= 0) {
@@ -225,7 +233,7 @@ const BudgetDetailView = ({ item }) => {
     }
 
     if (frequency === "yearly") {
-      const nextPaymentDate = new Date(dayOfYear);
+      const nextPaymentDate = new Date(paymentDateOfYear);
       if (nextPaymentDate < today) {
         nextPaymentDate.setFullYear(today.getFullYear() + 1);
       } else {
@@ -289,14 +297,14 @@ const BudgetDetailView = ({ item }) => {
       <FrequencyInfo
         frequency={frequency}
         isEditing={isEditing}
-        dayOfMonth={dayOfMonth}
-        setDayOfMonth={setDayOfMonth}
+        dayOfMonth={paymentDayOfMonth}
+        setDayOfMonth={setPaymentDayOfMonth}
         daysUntilPayment={daysUntilPayment}
         setFrequency={setFrequency}
-        dayOfWeek={dayOfWeek}
-        setDayOfWeek={setDayOfWeek}
-        yearlyDate={dayOfYear}
-        setYearlyDate={setDayOfYear}
+        dayOfWeek={paymentDayOfWeek}
+        setDayOfWeek={setPaymentDayOfWeek}
+        yearlyDate={paymentDateOfYear}
+        setYearlyDate={setPaymentDateOfYear}
       />
       <ProgressInfo
         percentSpent={percentSpent}
