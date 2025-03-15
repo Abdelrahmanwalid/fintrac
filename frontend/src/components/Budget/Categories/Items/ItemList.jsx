@@ -18,7 +18,7 @@ const ItemList = ({ categoryId }) => {
   // Fetch items when component mounts
   useEffect(() => {
     dispatch(fetchItemsAsync());
-  }, [dispatch]);
+  }, [dispatch, items.length]);
 
   // Debugging: Log valid items
   items.forEach((item, index) => {

@@ -1,13 +1,17 @@
-import React from "react";
+import { React, useEffect } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
-import { selectItem } from "../../../../store/itemSlice";
+import { selectItem, fetchItemsAsync } from "../../../../store/itemSlice";
 
 const SortableItem = ({ item, categoryId }) => {
   const dispatch = useDispatch();
   const selectedItem = useSelector((state) => state.items.selectedItem);
+
+  useEffect(() => {
+    dispatch(fetchItemsAsync()); // Fetch updated item list on mount/update
+  }, [dispatch, item.name]);
 
   const {
     attributes,
@@ -15,13 +19,13 @@ const SortableItem = ({ item, categoryId }) => {
     setNodeRef,
     transform,
     transition,
-    isDragging
+    isDragging,
   } = useSortable({
     id: item._id, // Must match item IDs in the SortableContext
     data: {
       type: "item",
       containerId: categoryId, // <<--- Add this to ensure 'over.data?.current?.containerId' is set
-      item
+      item,
     },
   });
 
