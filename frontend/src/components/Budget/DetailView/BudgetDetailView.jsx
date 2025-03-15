@@ -54,23 +54,22 @@ const BudgetDetailView = ({ item }) => {
   // re-sync local state with the latest data from Redux
   useEffect(() => {
     if (!item) return;
-    // Attempt to find the "latest" version in Redux categories
     const currentCategory = categories.find(
       (cat) => cat.id === item.categoryId
     );
     const currentItem = currentCategory?.items?.find((i) => i.id === item.id);
 
     if (currentItem) {
+      setNewItemName(currentItem.name); // Update state when item changes
       setEditedBudget(currentItem.budget);
       setSpentAmount(currentItem.spent);
       setOriginalSpentAmount(currentItem.spent);
       setOriginalBudget(currentItem.budget);
-      setNewItemName(currentItem.name);
       setPaymentDate(currentItem.paymentDate);
       setFrequency(currentItem.frequency);
       setCustomSchedule(currentItem.customSchedule);
     }
-  }, [item, categories]);
+  }, [item, categories, newItemName]);
 
   // Update the item in Redux (which also updates the server)
   const handleUpdateItemRedux = (updatedItem) => {
@@ -151,8 +150,15 @@ const BudgetDetailView = ({ item }) => {
 
   const handleRenameSubmit = () => {
     if (!item) return;
+
     if (newItemName.trim() && newItemName !== item.name) {
-      handleUpdateItemRedux({ ...item, name: newItemName.trim() });
+      const updatedItem = {
+        ...item,
+        name: newItemName.trim(),
+        categoryId: item.categoryId, // Ensure category stays the same
+      };
+
+      handleUpdateItemRedux(updatedItem);
     }
     setIsRenamingItem(false);
   };

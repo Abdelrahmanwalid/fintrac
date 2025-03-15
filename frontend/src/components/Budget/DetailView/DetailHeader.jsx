@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { useDispatch } from "react-redux";
 // Import your Redux actions:
@@ -12,6 +12,7 @@ const DetailHeader = ({ item }) => {
   const dispatch = useDispatch();
   const [isRenamingItem, setIsRenamingItem] = React.useState(false);
   const [newItemName, setNewItemName] = React.useState(item?.name || "");
+  const inputRef = useRef(null);
 
   React.useEffect(() => {
     if (item) {
@@ -19,14 +20,12 @@ const DetailHeader = ({ item }) => {
     }
   }, [item]);
 
-  if (!item) return null;
-
   // 1) rename logic
   const handleRenameClick = () => {
     setIsRenamingItem(true);
   };
 
-  const handleRenameSubmit = () => {
+  const handleRenameSubmit = React.useCallback(() => {
     setIsRenamingItem(false);
     if (newItemName.trim() && newItemName !== item.name) {
       const updatedItem = { ...item, name: newItemName.trim() };
@@ -43,7 +42,27 @@ const DetailHeader = ({ item }) => {
     } else {
       setNewItemName(item.name);
     }
-  };
+  }, [dispatch, item, newItemName]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (inputRef.current && !inputRef.current.contains(event.target)) {
+        handleRenameSubmit();
+      }
+    };
+
+    if (isRenamingItem) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isRenamingItem, handleRenameSubmit]);
+
+  if (!item) return null;
 
   // 2) delete logic
   const handleDelete = () => {
@@ -60,6 +79,7 @@ const DetailHeader = ({ item }) => {
       {isRenamingItem ? (
         <div className="flex items-center space-x-2 flex-1 mr-4">
           <input
+            ref={inputRef}
             type="text"
             value={newItemName}
             onChange={(e) => setNewItemName(e.target.value)}
