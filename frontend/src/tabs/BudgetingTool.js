@@ -4,6 +4,7 @@ import DetailView from "../components/Budget/DetailView/DetailView";
 import IncomeForm from "../components/Income/IncomeForm";
 import Reports from "../components/Report/Reports";
 import CategorySection from "../components/Budget/Categories/CategorySection";
+import BudgetTracker from "../components/Budget/BudgetTracker.jsx";
 
 const BudgetingTool = ({ setIsSidebarOpen, isSidebarOpen }) => {
   const [activeSection, setActiveSection] = useState("tracker");

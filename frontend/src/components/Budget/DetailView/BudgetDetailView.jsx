@@ -1,21 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux"; // Remove useSelector if not needed
 import { DollarSign } from "lucide-react";
-
+import { updateItemAsync } from "../../../store/itemSlice";
 import DetailHeader from "./DetailHeader";
 import BudgetInfo from "./BudgetInfo";
 import FrequencyInfo from "./FrequencyInfo";
 import ProgressInfo from "./ProgressInfo";
 import ActionButtons from "./ActionButtons";
 
-// Import your Redux actions/thunks
-import { updateItemAsync } from "../../../store/itemSlice";
-
 const BudgetDetailView = ({ item }) => {
   const dispatch = useDispatch();
-  const categories = useSelector((state) => state.categories.categories);
 
-  // Use backend-aligned field names
+  // Local state
   const [isEditing, setIsEditing] = useState(false);
   const [editedBudget, setEditedBudget] = useState(item ? item.budget : 0);
   const [spentAmount, setSpentAmount] = useState(item ? item.spent : 0);
@@ -48,36 +44,28 @@ const BudgetDetailView = ({ item }) => {
       : new Date()
   );
 
-  // Sync state with item changes
+  // Sync state directly with item prop
   useEffect(() => {
     if (!item) return;
-    const currentCategory = categories.find(
-      (cat) => cat.id === item.categoryId
+    console.log("Syncing with item:", item); // Debug log
+    setEditedBudget(item.budget || 0);
+    setSpentAmount(item.spent || 0);
+    setOriginalSpentAmount(item.spent || 0);
+    setOriginalBudget(item.budget || 0);
+    setNewItemName(item.name || "");
+    setPaymentDate(item.paymentDate || "");
+    setFrequency(item.frequency || "monthly");
+    setCustomSchedule(item.customSchedule || "");
+    setPaymentDayOfWeek(item.paymentDayOfWeek || "Monday");
+    setPaymentDayOfMonth(
+      item.isLastDayOfMonth
+        ? "Last Day of Month"
+        : item.paymentDayOfMonth || "1"
     );
-    const currentItem = currentCategory?.items?.find((i) => i.id === item.id);
-
-    if (currentItem) {
-      setNewItemName(currentItem.name);
-      setEditedBudget(currentItem.budget);
-      setSpentAmount(currentItem.spent);
-      setOriginalSpentAmount(currentItem.spent);
-      setOriginalBudget(currentItem.budget);
-      setPaymentDate(currentItem.paymentDate);
-      setFrequency(currentItem.frequency);
-      setCustomSchedule(currentItem.customSchedule);
-      setPaymentDayOfWeek(currentItem.paymentDayOfWeek || "Monday");
-      setPaymentDayOfMonth(
-        currentItem.isLastDayOfMonth
-          ? "Last Day of Month"
-          : currentItem.paymentDayOfMonth || "1"
-      );
-      setPaymentDateOfYear(
-        currentItem.paymentDateOfYear
-          ? new Date(currentItem.paymentDateOfYear)
-          : new Date()
-      );
-    }
-  }, [item, categories]);
+    setPaymentDateOfYear(
+      item.paymentDateOfYear ? new Date(item.paymentDateOfYear) : new Date()
+    );
+  }, [item]);
 
   const handleUpdateItemRedux = (updatedItem) => {
     dispatch(
@@ -87,12 +75,8 @@ const BudgetDetailView = ({ item }) => {
       })
     );
   };
-  // -----------
-  // Editing Logic
-  // -----------
-  const handleEditClick = () => {
-    setIsEditing(true);
-  };
+
+  const handleEditClick = () => setIsEditing(true);
 
   const handleSave = () => {
     if (!item) return;
@@ -122,14 +106,10 @@ const BudgetDetailView = ({ item }) => {
     setSpentAmount(originalSpentAmount);
   };
 
-  // -----------
-  // Input Handlers
-  // -----------
   const handleSpentChange = (e) => {
     if (!item) return;
     const value = Math.max(0, Math.min(e.target.value, editedBudget));
     setSpentAmount(value);
-    // If you want immediate updates:
     handleUpdateItemRedux({
       ...item,
       budget: parseFloat(editedBudget),
@@ -147,9 +127,6 @@ const BudgetDetailView = ({ item }) => {
     handleUpdateItemRedux({ ...item, deleted: true });
   };
 
-  // -----------
-  // Renaming
-  // -----------
   const handleRenameClick = () => {
     if (!item) return;
     setIsRenamingItem(true);
@@ -158,19 +135,16 @@ const BudgetDetailView = ({ item }) => {
 
   const handleRenameSubmit = () => {
     if (!item) return;
-
     if (newItemName.trim() && newItemName !== item.name) {
       const updatedItem = {
         ...item,
         name: newItemName.trim(),
-        categoryId: item.categoryId, // Ensure category stays the same
+        categoryId: item.categoryId,
       };
-
       handleUpdateItemRedux(updatedItem);
     }
     setIsRenamingItem(false);
   };
-
   // -----------
   // Payment Calculation
   // -----------
@@ -271,7 +245,7 @@ const BudgetDetailView = ({ item }) => {
 
   const budget = editedBudget;
   const remaining = budget - spentAmount;
-  const percentSpent = (spentAmount / budget) * 100;
+  const percentSpent = budget ? (spentAmount / budget) * 100 : 0;
   const isOverBudget = spentAmount > budget;
 
   return (

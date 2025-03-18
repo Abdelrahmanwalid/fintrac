@@ -1,8 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import IncomeDashboard from "./IncomeDashboard";
+import {
+  addIncomeAsync,
+  fetchIncomeAsync,
+  removeIncomeAsync,
+} from "../../store/incomeSlice";
 
 const IncomeForm = () => {
-  const [incomeItems, setIncomeItems] = useState([]);
+  const dispatch = useDispatch();
+  const incomeItems = useSelector((state) => state.income.incomeItems);
   const [source, setSource] = useState("");
   const [amount, setAmount] = useState("");
   const [recurringDate, setRecurringDate] = useState("");
@@ -11,6 +18,10 @@ const IncomeForm = () => {
   const [isRecurring, setIsRecurring] = useState(false);
   const [isStudentLoan, setIsStudentLoan] = useState(false);
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    dispatch(fetchIncomeAsync());
+  }, [dispatch]);
 
   const validate = () => {
     const newErrors = {};
@@ -25,7 +36,6 @@ const IncomeForm = () => {
       newErrors.lastPaymentDate = "Please provide the last payment date.";
     if (!isRecurring && !isStudentLoan && !customDate)
       newErrors.customDate = "Please provide the date of payment.";
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -37,15 +47,17 @@ const IncomeForm = () => {
     const incomeData = {
       source,
       amount: parseFloat(amount),
-      recurring: isStudentLoan ? "termly" : isRecurring ? recurringDate : "one-off",
+      recurring: isStudentLoan
+        ? "termly"
+        : isRecurring
+        ? recurringDate
+        : "one-off",
       lastPaymentDate: isRecurring && !isStudentLoan ? lastPaymentDate : null,
       customDate: !isRecurring && !isStudentLoan ? customDate : null,
     };
 
-    console.log("Income Added:", incomeData);
-    setIncomeItems((prevItems) => [...prevItems, incomeData]); // Add income item to the list
+    dispatch(addIncomeAsync(incomeData));
 
-    // Reset form fields
     setSource("");
     setAmount("");
     setRecurringDate("");
@@ -56,9 +68,9 @@ const IncomeForm = () => {
     setErrors({});
   };
 
-  // Function to remove an income item
   const removeIncomeItem = (index) => {
-    setIncomeItems((prevItems) => prevItems.filter((_, i) => i !== index));
+    const incomeId = incomeItems[index]._id;
+    dispatch(removeIncomeAsync(incomeId));
   };
 
   return (
@@ -66,33 +78,41 @@ const IncomeForm = () => {
       <div className="w-1/2 p-4">
         <h2 className="text-2xl font-bold mb-4">Add Income</h2>
         <form className="space-y-4" onSubmit={handleSubmit}>
-          {/* Source of Income */}
           <div>
-            <label className="block text-lg font-medium text-gray-700">Source of Income</label>
+            <label className="block text-lg font-medium text-gray-700">
+              Source of Income
+            </label>
             <select
               value={source}
               onChange={(e) => {
                 setSource(e.target.value);
                 setIsStudentLoan(e.target.value === "student-finance");
-                setIsRecurring(e.target.value !== "student-finance");
+                setIsRecurring(
+                  e.target.value !== "student-finance" && e.target.value !== ""
+                );
                 setErrors((prev) => ({ ...prev, source: "" }));
               }}
-              className="w-full px-4 py-2 border rounded-lg focus:outline-none"
+              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select Source</option>
-              <option value="student-finance">Student Finance (Loan or Grant)</option>
+              <option value="student-finance">
+                Student Finance (Loan or Grant)
+              </option>
               <option value="part-time-job">Part-Time Job</option>
               <option value="scholarship">Scholarship</option>
               <option value="allowance">Allowance</option>
               <option value="freelancing">Freelancing</option>
               <option value="other">Other</option>
             </select>
-            {errors.source && <p className="text-red-500 text-sm">{errors.source}</p>}
+            {errors.source && (
+              <p className="text-red-500 text-sm">{errors.source}</p>
+            )}
           </div>
 
-          {/* Amount */}
           <div>
-            <label className="block text-lg font-medium text-gray-700">Amount (£)</label>
+            <label className="block text-lg font-medium text-gray-700">
+              Amount (£)
+            </label>
             <input
               type="number"
               value={amount}
@@ -101,37 +121,51 @@ const IncomeForm = () => {
                 setErrors((prev) => ({ ...prev, amount: "" }));
               }}
               placeholder="e.g., 3000"
-              className="w-full px-4 py-2 border rounded-lg focus:outline-none"
+              className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              min="0"
+              step="0.01"
             />
-            {errors.amount && <p className="text-red-500 text-sm">{errors.amount}</p>}
+            {errors.amount && (
+              <p className="text-red-500 text-sm">{errors.amount}</p>
+            )}
           </div>
 
-          {/* Student Finance Specific */}
           {isStudentLoan && (
             <div>
-              <label className="block text-lg font-medium text-gray-700">Select Term Start Month</label>
+              <label className="block text-lg font-medium text-gray-700">
+                Select Term Start Month
+              </label>
               <select
                 value={recurringDate}
                 onChange={(e) => {
                   setRecurringDate(e.target.value);
                   setErrors((prev) => ({ ...prev, recurringDate: "" }));
                 }}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none"
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select Start Month</option>
-                <option value="september">September (Payments: September, January, April)</option>
-                <option value="october">October (Payments: October, January, April)</option>
-                <option value="january">January (Payments: January, April, September)</option>
-                <option value="april">April (Payments: April, September, January)</option>
+                <option value="september">
+                  September (Payments: Sep, Jan, Apr)
+                </option>
+                <option value="october">
+                  October (Payments: Oct, Jan, Apr)
+                </option>
+                <option value="january">
+                  January (Payments: Jan, Apr, Sep)
+                </option>
+                <option value="april">April (Payments: Apr, Sep, Jan)</option>
               </select>
-              {errors.recurringDate && <p className="text-red-500 text-sm">{errors.recurringDate}</p>}
+              {errors.recurringDate && (
+                <p className="text-red-500 text-sm">{errors.recurringDate}</p>
+              )}
             </div>
           )}
 
-          {/* Recurring or One-Off for Non-Student Finance */}
           {!isStudentLoan && (
             <div>
-              <label className="block text-lg font-medium text-gray-700">Is this a recurring payment?</label>
+              <label className="block text-lg font-medium text-gray-700">
+                Is this a recurring payment?
+              </label>
               <div className="flex items-center space-x-4">
                 <label className="flex items-center">
                   <input
@@ -157,17 +191,18 @@ const IncomeForm = () => {
             </div>
           )}
 
-          {/* Recurring Interval */}
           {isRecurring && !isStudentLoan && (
             <div>
-              <label className="block text-lg font-medium text-gray-700">How often do you receive this income?</label>
+              <label className="block text-lg font-medium text-gray-700">
+                How often do you receive this income?
+              </label>
               <select
                 value={recurringDate}
                 onChange={(e) => {
                   setRecurringDate(e.target.value);
                   setErrors((prev) => ({ ...prev, recurringDate: "" }));
                 }}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none"
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select Recurrence</option>
                 <option value="weekly">Weekly</option>
@@ -176,14 +211,17 @@ const IncomeForm = () => {
                 <option value="semester">Per Semester</option>
                 <option value="yearly">Yearly</option>
               </select>
-              {errors.recurringDate && <p className="text-red-500 text-sm">{errors.recurringDate}</p>}
+              {errors.recurringDate && (
+                <p className="text-red-500 text-sm">{errors.recurringDate}</p>
+              )}
             </div>
           )}
 
-          {/* Last Payment Date for Recurring Income */}
           {isRecurring && !isStudentLoan && (
             <div>
-              <label className="block text-lg font-medium text-gray-700">When was your last payment?</label>
+              <label className="block text-lg font-medium text-gray-700">
+                When was your last payment?
+              </label>
               <input
                 type="date"
                 value={lastPaymentDate}
@@ -191,16 +229,19 @@ const IncomeForm = () => {
                   setLastPaymentDate(e.target.value);
                   setErrors((prev) => ({ ...prev, lastPaymentDate: "" }));
                 }}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none"
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              {errors.lastPaymentDate && <p className="text-red-500 text-sm">{errors.lastPaymentDate}</p>}
+              {errors.lastPaymentDate && (
+                <p className="text-red-500 text-sm">{errors.lastPaymentDate}</p>
+              )}
             </div>
           )}
 
-          {/* Custom Date for Non-Recurring Income */}
           {!isStudentLoan && !isRecurring && (
             <div>
-              <label className="block text-lg font-medium text-gray-700">Date of Payment (One-Off)</label>
+              <label className="block text-lg font-medium text-gray-700">
+                Date of Payment (One-Off)
+              </label>
               <input
                 type="date"
                 value={customDate}
@@ -208,25 +249,28 @@ const IncomeForm = () => {
                   setCustomDate(e.target.value);
                   setErrors((prev) => ({ ...prev, customDate: "" }));
                 }}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none"
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              {errors.customDate && <p className="text-red-500 text-sm">{errors.customDate}</p>}
+              {errors.customDate && (
+                <p className="text-red-500 text-sm">{errors.customDate}</p>
+              )}
             </div>
           )}
 
-          {/* Submit Button */}
           <button
             type="submit"
-            className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+            className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
           >
             Add Income
           </button>
         </form>
       </div>
 
-      {/* Render IncomeDashboard on the side */}
       <div className="w-1/2 p-4">
-        <IncomeDashboard incomeItems={incomeItems} removeIncomeItem={removeIncomeItem} />
+        <IncomeDashboard
+          incomeItems={incomeItems}
+          removeIncomeItem={removeIncomeItem}
+        />
       </div>
     </div>
   );

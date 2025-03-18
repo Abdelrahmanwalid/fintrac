@@ -82,60 +82,62 @@ const itemSlice = createSlice({
   name: "items",
   initialState: {
     itemsByCategory: {},
+    selectedItem: null,
     loading: false,
     error: null,
   },
   reducers: {
     selectItem: (state, action) => {
-      state.selectedItem = action.payload; // Set selected item
+      state.selectedItem = action.payload;
     },
     clearSelectedItem: (state) => {
-      state.selectedItem = null; // Clear selection when needed
+      state.selectedItem = null;
     },
   },
   extraReducers: (builder) => {
     builder
-
+      .addCase(fetchItemsAsync.pending, (state) => {
+        state.loading = true;
+      })
       .addCase(fetchItemsAsync.fulfilled, (state, action) => {
-        if (!Array.isArray(action.payload)) {
-          console.error("Invalid payload format:", action.payload);
-          return;
-        }
-
-        const validItems = action.payload.filter((item) => item && item.name);
+        state.loading = false;
         state.itemsByCategory = {};
-
-        validItems.forEach((item) => {
+        action.payload.forEach((item) => {
           if (!state.itemsByCategory[item.categoryId]) {
             state.itemsByCategory[item.categoryId] = [];
           }
-          state.itemsByCategory[item.categoryId].push(item);
+          state.itemsByCategory[item.categoryId].push({
+            ...item,
+            id: item._id,
+          }); // Normalize _id to id if needed
         });
-
-        // Sort each category's array by the order property
-        Object.keys(state.itemsByCategory).forEach((categoryId) => {
-          state.itemsByCategory[categoryId].sort((a, b) => a.order - b.order);
-        });
+        if (state.selectedItem) {
+          const updatedItem = Object.values(state.itemsByCategory)
+            .flat()
+            .find((i) => i._id === state.selectedItem._id);
+          if (updatedItem) state.selectedItem = updatedItem;
+        }
+      })
+      .addCase(fetchItemsAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       })
       .addCase(updateItemAsync.fulfilled, (state, action) => {
         const { itemId, updatedItem } = action.payload;
         const categoryItems =
           state.itemsByCategory[updatedItem.categoryId] || [];
-
-        const itemIndex = categoryItems.findIndex((item) => item.id === itemId);
+        const itemIndex = categoryItems.findIndex(
+          (item) => item._id === itemId
+        );
         if (itemIndex !== -1) {
-          categoryItems[itemIndex] = updatedItem; // Update item in category
+          categoryItems[itemIndex] = updatedItem;
         }
-      })
-      .addCase(fetchItemsAsync.rejected, (state, action) => {
-        state.error = action.payload;
-      })
-      .addCase(updateItemOrderAsync.rejected, (state, action) => {
-        state.error = action.payload || "Failed to reorder item";
+        if (state.selectedItem && state.selectedItem._id === itemId) {
+          state.selectedItem = updatedItem;
+        }
       });
   },
 });
-
 export const selectItemsByCategory = (state, categoryId) => {
   return (state.items.itemsByCategory[categoryId] || [])
     .slice() // Create a shallow copy so the original state isn't mutated

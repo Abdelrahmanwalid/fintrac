@@ -1,17 +1,13 @@
-import { React, useEffect } from "react";
+import React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
-import { selectItem, fetchItemsAsync } from "../../../../store/itemSlice";
+import { selectItem } from "../../../../store/itemSlice";
 
 const SortableItem = ({ item, categoryId }) => {
   const dispatch = useDispatch();
   const selectedItem = useSelector((state) => state.items.selectedItem);
-
-  useEffect(() => {
-    dispatch(fetchItemsAsync()); // Fetch updated item list on mount/update
-  }, [dispatch, item.name]);
 
   const {
     attributes,
@@ -21,10 +17,10 @@ const SortableItem = ({ item, categoryId }) => {
     transition,
     isDragging,
   } = useSortable({
-    id: item._id, // Must match item IDs in the SortableContext
+    id: item._id,
     data: {
       type: "item",
-      containerId: categoryId, // <<--- Add this to ensure 'over.data?.current?.containerId' is set
+      containerId: categoryId,
       item,
     },
   });
@@ -49,7 +45,6 @@ const SortableItem = ({ item, categoryId }) => {
         ${isSelected ? "bg-blue-50 border-blue-200" : ""}
         transition-shadow duration-200`}
     >
-      {/* Drag handle */}
       <div
         {...attributes}
         {...listeners}
@@ -57,10 +52,11 @@ const SortableItem = ({ item, categoryId }) => {
       >
         <GripVertical className="h-5 w-5 text-gray-400" />
       </div>
-
-      {/* Item content */}
       <button
-        onClick={() => dispatch(selectItem(item))}
+        onClick={() => {
+          console.log("Selecting item:", item); // Debug log
+          dispatch(selectItem(item));
+        }}
         className={`flex-grow p-2 text-left rounded-lg transition-all duration-200 
           ${isSelected ? "bg-blue-100 text-blue-800" : "hover:bg-gray-100"}`}
       >
