@@ -1,17 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import SortableItem from "./Categories/Items/SortableItem"; // Adjust path as needed
-import BudgetDetailView from "./DetailView/BudgetDetailView"; // Adjust path as needed
-import { fetchItemsAsync } from "../../store/itemSlice"; // Adjust path
-import { fetchIncomeAsync } from "../../store/incomeSlice"; // Adjust path
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { fetchIncomeAsync } from "../../store/incomeSlice";
+import { getMonthlyAmount } from "../../utils/incomeUtils";
 
 const BudgetTracker = () => {
   const dispatch = useDispatch();
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [isPopupExpanded, setIsPopupExpanded] = useState(false);
 
-  // Fetch items and income from Redux
   const incomeItems = useSelector((state) => state.income?.incomeItems || []);
   const budgetItemsByCategory = useSelector(
     (state) => state.items?.itemsByCategory || {}
@@ -19,109 +13,48 @@ const BudgetTracker = () => {
   const budgetItems = Object.values(budgetItemsByCategory).flat();
 
   useEffect(() => {
-    dispatch(fetchItemsAsync());
     dispatch(fetchIncomeAsync());
   }, [dispatch]);
 
-  // Simplified monthly income calculation
-  const getMonthlyIncome = (amount, recurring) => {
-    const parsedAmount = parseFloat(amount);
-    switch (recurring) {
-      case "weekly":
-        return parsedAmount * 4.33;
-      case "bi-weekly":
-        return parsedAmount * 2.17;
-      case "monthly":
-        return parsedAmount;
-      case "semester":
-        return parsedAmount / 6;
-      case "yearly":
-        return parsedAmount / 12;
-      case "termly":
-        return parsedAmount / 4;
-      default:
-        return parsedAmount;
-    }
-  };
-
   const monthlyIncome = incomeItems.reduce(
-    (total, inc) => total + getMonthlyIncome(inc.amount, inc.recurring),
+    (total, item) =>
+      total +
+      getMonthlyAmount(item.amount, item.recurring, item.lastPaymentDate),
     0
   );
+
   const totalBudgeted = budgetItems.reduce(
-    (total, item) => total + (item.budget || 0),
+    (total, item) => total + getMonthlyAmount(item.budget, item.frequency),
     0
   );
   const fundsRemaining = monthlyIncome - totalBudgeted;
+  const isOverBudget = totalBudgeted > monthlyIncome;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto relative">
-      {/* Expandable Popup at the Top */}
-      <div className="fixed top-0 left-0 right-0 z-10 mx-auto max-w-md">
-        <div
-          className="bg-gray-100 p-2 rounded-b-lg shadow-md cursor-pointer"
-          onClick={() => setIsPopupExpanded(!isPopupExpanded)}
-        >
-          <div className="flex justify-between items-center text-sm">
-            <span>Income: £{monthlyIncome.toFixed(2)}</span>
-            <span
-              className={fundsRemaining < 0 ? "text-red-500" : "text-green-500"}
-            >
-              Budgeted: £{totalBudgeted.toFixed(2)}
-            </span>
-            {isPopupExpanded ? (
-              <ChevronUp size={16} />
-            ) : (
-              <ChevronDown size={16} />
-            )}
-          </div>
-          {isPopupExpanded && (
-            <div className="mt-2 p-2 bg-white rounded-lg shadow-inner text-sm">
-              <p>Funds Remaining: £{fundsRemaining.toFixed(2)}</p>
-              <p className="text-gray-500 text-xs mt-1">Click to collapse</p>
-            </div>
-          )}
+    <div className="w-full mb-6">
+      <div className="max-w-md mx-auto bg-white p-4 sm:p-5 rounded-xl shadow-md">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <span className="text-sm sm:text-base font-medium text-gray-800">
+            Income:{" "}
+            <span className="text-blue-600">£{monthlyIncome.toFixed(2)}</span>
+          </span>
+          <span className="text-sm sm:text-base font-medium text-gray-800">
+            Budgeted:{" "}
+            <span className="text-gray-800">£{totalBudgeted.toFixed(2)}</span>
+          </span>
+          <span
+            className={`text-sm sm:text-base font-medium ${
+              isOverBudget ? "text-red-600" : "text-green-600"
+            }`}
+          >
+            Remaining: £{fundsRemaining.toFixed(2)}
+          </span>
         </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="mt-16">
-        {" "}
-        {/* Offset for popup */}
-        <div className="flex flex-col md:flex-row gap-6">
-          {/* Category Section */}
-          <div className="w-full md:w-1/2">
-            <h2 className="text-xl font-bold mb-4">Budget Categories</h2>
-            {Object.keys(budgetItemsByCategory).length === 0 ? (
-              <p className="text-gray-500">
-                No categories yet. Add some budget items to start!
-              </p>
-            ) : (
-              Object.entries(budgetItemsByCategory).map(
-                ([categoryId, items]) => (
-                  <div key={categoryId} className="mb-6">
-                    <h3 className="text-lg font-semibold mb-2">
-                      {items[0]?.categoryId?.name || "Uncategorized"}
-                    </h3>
-                    {items.map((item) => (
-                      <SortableItem
-                        key={item._id}
-                        item={item}
-                        onClick={() => setSelectedItem(item)}
-                        isSelected={selectedItem?._id === item._id}
-                      />
-                    ))}
-                  </div>
-                )
-              )
-            )}
-          </div>
-
-          {/* Budget Detail View */}
-          <div className="w-full md:w-1/2">
-            <BudgetDetailView item={selectedItem} />
-          </div>
-        </div>
+        {isOverBudget && (
+          <p className="mt-3 text-xs sm:text-sm text-red-600 bg-red-50 p-2 rounded-md">
+            Warning: Your budget exceeds your monthly income!
+          </p>
+        )}
       </div>
     </div>
   );

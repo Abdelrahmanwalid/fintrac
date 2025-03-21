@@ -18,7 +18,6 @@ function DetailView() {
     dispatch(fetchItemsAsync());
   }, [dispatch]);
 
-  // Find the latest version of selectedItem from itemsByCategory
   const getLatestItem = () => {
     if (!selectedItem || loading) return selectedItem;
     const categoryItems = itemsByCategory[selectedItem.categoryId] || [];
@@ -30,8 +29,12 @@ function DetailView() {
 
   if (!currentItem) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
-        <p className="text-gray-500">Select an item to view details</p>
+      <div className="w-full">
+        <div className="bg-white rounded-xl shadow-md p-6 text-center">
+          <p className="text-gray-500 text-sm sm:text-base">
+            Select an item to view details
+          </p>
+        </div>
       </div>
     );
   }
@@ -52,11 +55,13 @@ function DetailView() {
   };
 
   return (
-    <BudgetDetailView
-      item={currentItem}
-      onUpdate={handleUpdateItem}
-      onRemove={handleDeleteItem}
-    />
+    <div className="w-full">
+      <BudgetDetailView
+        item={currentItem}
+        onUpdate={handleUpdateItem}
+        onRemove={handleDeleteItem}
+      />
+    </div>
   );
 }
 

@@ -39,26 +39,25 @@ const BudgetingTool = ({ setIsSidebarOpen, isSidebarOpen }) => {
         className="shadow-md bg-white z-10"
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Tracker Section */}
+      <main className="flex-1 w-full px-0 pt-6 pb-8">
         {activeSection === "tracker" && (
-          <div className="flex flex-col lg:flex-row gap-8">
-            {/* Each component internally uses Redux for data */}
-            <CategorySection className="flex-1 p-4 bg-white rounded-lg shadow-md" />
-            <DetailView className="flex-1 p-4 bg-white rounded-lg shadow-md" />
+          <div className="flex flex-col gap-6">
+            <BudgetTracker />
+            <div className="flex flex-col lg:flex-row gap-6 w-full px-4 sm:px-6 lg:px-8">
+              <CategorySection />
+              <DetailView />
+            </div>
           </div>
         )}
 
-        {/* Income Section */}
         {activeSection === "income" && (
-          <div className="p-4 bg-white rounded-lg shadow-md">
+          <div className="px-4 sm:px-6 lg:px-8">
             <IncomeForm income={income} setIncome={setIncome} />
           </div>
         )}
 
-        {/* Reports Section */}
         {activeSection === "reports" && (
-          <div className="p-4 bg-white rounded-lg shadow-md">
+          <div className="px-4 sm:px-6 lg:px-8">
             <Reports />
           </div>
         )}
